@@ -1,5 +1,5 @@
 {
-  "description": "Bloqueos de videos-redes: no deja mostrar, traer, pisar ni borrar el .env con las claves del sistema de videos ni sus respaldos, no deja borrar los volúmenes de Docker donde n8n guarda el flujo y las credenciales, y no deja que Claude corra los comandos que publican en las redes (eso lo hace el dueño).",
+  "description": "Bloqueos de videos-redes: no deja mostrar, traer, pisar ni borrar el .env con las claves del sistema de videos, el flujo de n8n (lleva la clave del motor) ni los respaldos; no deja escribir claves en los comandos; no deja borrar los volúmenes de Docker donde n8n guarda el flujo y las credenciales, y no deja que Claude corra los comandos que publican en las redes (eso lo decide el dueño).",
   "hooks": {
     "PreToolUse": [
       {

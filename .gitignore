@@ -2,3 +2,17 @@ __pycache__/
 *.pyc
 .DS_Store
 *.plugin
+# Lo que se genera al probar el motor dentro del repositorio (nunca se sube: puede tener claves)
+sistema/node_modules/
+sistema/plantilla*/assets/vendor/
+sistema/.env
+sistema/config/negocio.json
+sistema/n8n/flujo.json
+sistema/salida/
+sistema/datos/
+sistema/trabajos/
+sistema/respaldos/
+sistema/fotos/
+sistema/musica/
+sistema/AVANCE.md
+sistema/COMO-USARLO.md

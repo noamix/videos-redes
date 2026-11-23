@@ -12,18 +12,19 @@ Hace falta terminal en la PC del sistema. Si no hay, decirlo y pedirle al dueño
 ## 1. Estado general
 
 - Leer `~/videos-redes/AVANCE.md` y `config/negocio.json`. Si no existen, ofrecer `/videos-redes:armar`.
-- `npm run chequeo`. Si el comando no existe (sistema armado antes del plugin), revisar a mano lo mismo: Node, FFmpeg, HyperFrames, Gemini, Telegram, n8n, Instagram (cuenta y cupo), Buffer (canales) y las plantillas de textos.
-- Motor: el servicio activo y sus últimas líneas de registro (Linux: `systemctl --user status videos-redes` y `journalctl --user -u videos-redes -n 50 --no-pager`).
-- n8n: el contenedor arriba (`docker compose ps` en `n8n/`), el flujo activo y las últimas ejecuciones sin error (pantalla de n8n, Executions).
-- Planilla: la fila de hoy y su estado, y filas trabadas en `rehacer`, `error_ig` o `publicar_a_mano`.
+- `cd ~/videos-redes && npm run chequeo -- --completo`. Revisa el negocio (y si está en pausa), Node, FFmpeg, GSAP, HyperFrames y Chrome, letras, el motor, el estilo, las frases sin IA, Gemini, Telegram (manda un mensaje de prueba), n8n, Instagram (cuenta y cupo), WordPress y Buffer (canales). Cada ❌ trae su arreglo al lado.
+  - Si el sistema se armó antes del plugin y el comando no existe o es otro, revisar a mano lo mismo.
+- Motor: `systemctl --user status videos-redes` y `journalctl --user -u videos-redes -n 50 --no-pager`.
+- n8n: `cd ~/videos-redes/n8n && docker compose ps`, el flujo activo y las últimas ejecuciones sin error (pantalla de n8n, Executions).
+- Planilla: la fila de hoy y su estado, y filas trabadas en `error`, `error_ig`, `rehacer` o `publicar_a_mano` (el detalle está en `nota`).
 - La PC: que no se suspenda sola y que haya disco libre.
-- `pausado` en `config/negocio.json`: si está en true, no se genera ni se publica nada.
 
 ## 2. Pruebas sin publicar
 
 1. `npm run prueba`: video al Telegram del dueño, marcado PRUEBA.
-2. `npm run ig-probar`: contenedor hasta FINISHED, sin `media_publish`.
-3. `npm run redes-probar`: un borrador por red, que se borra. Después revisar en Buffer que Queue y Drafts estén en 0 en cada canal.
+2. `npm run ig-probar`: sube a Meta y espera FINISHED, sin `media_publish`.
+3. `npm run redes-probar`: un borrador por red con el último video de Instagram, que se borra. Después revisar en Buffer que Queue y Drafts estén en 0.
+4. Si se tocó el código: `npm run pruebas` (y `-- --render` si se tocó el video).
 
 ## 3. Resultado
 
@@ -35,14 +36,16 @@ Antes de tocar código o configuración: `npm run respaldo`. Las reconexiones la
 
 | Síntoma | Causa probable | Arreglo |
 |---|---|---|
-| Instagram: error 190 | Token vencido o revocado (por ejemplo, cambió la contraseña de Facebook o sacó permisos) | Reconectar como dice la skill: Explorador → Generate Access Token → Ampliar, y el dueño corre `npm run ig-conectar` |
-| Buffer: el canal no aparece | Faltó Finish Connection o el canal se desconectó | Reconectarlo en Buffer (el dueño autoriza) y tocar Finish Connection |
-| YouTube publica en otro canal | Se conectó el canal personal | Con el OK del dueño, desconectarlo y conectar el bueno con la cuenta dueña, revisando "Confirm your Account" |
-| No llega el video para aprobar | Motor o n8n parados, `pausado` en true, ningún producto activo o la PC suspendida | Lo que diga el chequeo: `systemctl --user restart videos-redes`, `docker compose up -d` (nunca `down -v`), revisar `negocio.json` y la planilla |
-| Telegram no responde a los botones | Motor parado o token del bot cambiado | Reiniciar el servicio; si cambió el token, el dueño lo carga con `cargar-clave` |
-| Textos repetidos o sin IA | Gemini sin cupo, clave inválida o modelo dado de baja (salen las plantillas) | Revisar la clave y el modelo en AI Studio; no es urgente |
+| Instagram: error 190 ("se venció o se revocó") | Cambió la contraseña de Facebook, sacó permisos o perdió acceso a la página | Reconectar como dice la skill: Explorador → Generate Access Token → Ampliar, y el dueño corre `npm run ig-conectar` en su terminal |
+| Buffer: el canal no aparece o "needs to be refreshed" | Faltó Finish Connection o el canal se desconectó | Reconectarlo en Buffer (el dueño autoriza) y tocar Finish Connection |
+| YouTube publica en otro canal | Se conectó el canal personal | Con el OK del dueño, desconectarlo y conectar el bueno con la cuenta dueña, revisando "Confirm your Account"; `BUFFER_YOUTUBE` con el nombre correcto |
+| No llega el video para aprobar | Motor o n8n parados, flujo inactivo, `pausado` en true, ningún producto activo o la PC suspendida | `systemctl --user restart videos-redes`, `docker compose up -d` (nunca `down -v`), activar el flujo, revisar `negocio.json` y la planilla |
+| Telegram no responde a los botones | Motor parado o token del bot cambiado | Reiniciar el servicio; si cambió el token, el dueño lo carga con `cargar-clave`. Las respuestas que no llegaron a n8n se reintentan solas cada minuto |
+| Textos repetidos o sin IA | Gemini sin cupo, clave inválida o modelo dado de baja (salen las plantillas) | `npm run chequeo -- --completo` dice el modelo que anda: cargarlo con `--valor` en `GEMINI_MODELO`. No es urgente |
 | n8n no lee la planilla | Venció la credencial de Google (app en modo de prueba: 7 días) | Reconectar la credencial y pasar la app a producción |
-| Salió en Instagram pero no en TikTok o YouTube | Buffer no pudo bajar el video o la red lo rechazó | Leer el error del aviso; reintentar con el `media_url`; de respaldo, WordPress |
-| Estado `publicar_a_mano` | Falló la publicación automática | El video está en `salida/` y el texto en la planilla: lo sube el dueño a mano |
+| n8n no llega al motor | Subred cambiada, motor escuchando en otra IP o firewall | `MOTOR_HOST`, `MOTOR_URL_PARA_N8N` y la subred del compose tienen que coincidir; regla de ufw del compose; `npm run n8n -- --importar` si cambió algo |
+| Salió en Instagram pero no en TikTok o YouTube | Buffer no pudo bajar el video o la red lo rechazó | Leer el error del aviso; `npm run redes-probar`; el video está en `salida/` para subirlo a mano |
+| `publicar_a_mano` o `error_ig` | Falló la publicación automática | El detalle está en `nota`. Para reintentar, poner `aprobado` (si es de hoy); si no, el video está en `salida/` para subirlo a mano |
+| La PC estaba apagada a la hora | Ese día no se publicó y quedó `aprobado` | Si todavía es hoy, sale solo en la próxima vuelta; si no, cambiar la fecha de la fila a hoy |
 
 Al terminar, anotar en `AVANCE.md` el chequeo: fecha, qué falló, qué se arregló y qué queda pendiente.

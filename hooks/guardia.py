@@ -11,8 +11,9 @@ Modos (primer argumento):
   pre-commit  Antes de escribir archivos en la PC desde el espacio de Claude (device_commit_files).
 
 Qué frena:
-  1. Las claves del sistema (~/videos-redes/.env, sus copias y los respaldos): mostrarlas, traerlas,
-     pisarlas o borrarlas. Solo actúa sobre la carpeta del sistema, no sobre otros proyectos.
+  1. Las claves del sistema (~/videos-redes/.env, sus copias, el flujo de n8n con la clave del motor y los
+     respaldos): mostrarlas, traerlas, pisarlas o borrarlas, y escribir una clave en un comando. Solo actúa
+     sobre la carpeta del sistema, no sobre otros proyectos.
   2. Los datos de n8n: `docker compose down -v` del sistema, borrar sus volúmenes y podar volúmenes.
   3. Publicar: Claude no corre los comandos que publican en las redes; eso lo hace el dueño.
 
@@ -57,8 +58,16 @@ AVISO_VOLUMENES = (
 )
 AVISO_PUBLICAR = (
     "videos-redes: Claude no publica en las redes. Las pruebas son sin publicar (`npm run ig-probar`, "
-    "`npm run redes-probar`). Si el dueño quiere publicar ya, lo corre él en su terminal: "
-    "`npm run publicar-ahora`."
+    "`npm run redes-probar`). Lo que sale, sale porque el dueño lo aprobó en Telegram; si necesita publicar antes "
+    "de la hora, puede subir el video de la carpeta salida a mano o cambiar la hora en config/negocio.json."
+)
+AVISO_FLUJO = (
+    "videos-redes: n8n/flujo.json lleva la clave del motor: no se lee, no se muestra y no se trae. Para "
+    "subirlo a n8n: `npm run n8n -- --importar`, o desde la pantalla de n8n (Importar desde archivo)."
+)
+AVISO_CLAVE_EN_COMANDO = (
+    "videos-redes: las claves no van escritas en los comandos (quedan en el historial). Que el dueño la "
+    "cargue en su terminal con `npm run cargar-clave -- NOMBRE`, que la pide sin mostrarla."
 )
 
 # --- Rutas -----------------------------------------------------------------------------------------
@@ -92,6 +101,14 @@ def del_sistema(*textos: str) -> bool:
 
 def es_respaldo(ruta: str) -> bool:
     return del_sistema(ruta) and bool(re.search(r"[\\/]respaldos([\\/]|$)", ruta))
+
+
+def es_flujo(ruta: str, cwd: str = "") -> bool:
+    """El flujo de n8n del sistema (n8n/*.json): lleva la clave del motor."""
+    r = ruta.strip().strip("\"'")
+    if not re.search(r"^(/|~|[A-Za-z]:\\|\$HOME)", r) and SISTEMA not in r.lower() and cwd:
+        r = cwd.rstrip("/\\") + "/" + r
+    return del_sistema(r) and bool(re.search(r"[\\/]n8n[\\/][^\\/]+\.json$", r, re.I))
 
 
 def es_raiz(ruta: str) -> bool:
@@ -150,6 +167,10 @@ RE_LEE_ARCHIVO = re.compile(
     re.I,
 )
 RE_MUESTRA_ENTORNO = re.compile(r"process\.env|os\.environ|getenv|\$env:|ENV\[", re.I)
+NOMBRES_SECRETOS = r"(?:MOTOR_CLAVE|TELEGRAM_BOT_TOKEN|GEMINI_API_KEY|ANTHROPIC_API_KEY|IG_TOKEN(?:_USUARIO)?|BUFFER_API_KEY|WP_CLAVE_APLICACION|N8N_API_KEY)"
+# NOMBRE=valor con un valor escrito (no una variable): la clave queda en el comando y en el historial.
+RE_CLAVE_ESCRITA = re.compile(r"(?<![A-Za-z0-9_])" + NOMBRES_SECRETOS + r"\s*=\s*[\"']?(?!\$)[A-Za-z0-9_\-:.]{6,}")
+RE_CLAVE_CON_VALOR = re.compile(r"cargar-clave\b[^|;&\n]*\b" + NOMBRES_SECRETOS + r"\b[^|;&\n]*--valor\b")
 
 
 def palabras(texto: str) -> list[str]:
@@ -252,6 +273,7 @@ def revisar_etapa(etapa: str, cwd: str) -> str | None:
     if not programa:
         return None
     secretos = [a for a in args if es_env_secreto(a)] or envs_secretos(etapa)
+    flujos = [a for a in args if es_flujo(a, cwd)]
     respaldos = [a for a in args if es_respaldo(a)]
 
     if programa in COPIAN:
@@ -270,12 +292,14 @@ def revisar_etapa(etapa: str, cwd: str) -> str | None:
     if programa == "find" and any(a in {"-exec", "-execdir", "-ok", "-okdir"} for a in args):
         i = next(i for i, a in enumerate(args) if a in {"-exec", "-execdir", "-ok", "-okdir"})
         ejecuta = nombre_base(args[i + 1]).lower() if i + 1 < len(args) else ""
-        if ejecuta in LECTORES and (secretos or apunta_a_la_raiz(args[:i], cwd) or respaldos):
+        if ejecuta in LECTORES and (secretos or flujos or apunta_a_la_raiz(args[:i], cwd) or respaldos):
             return AVISO_CLAVES
         return None
     if programa in LECTORES:
         if respaldos:
             return AVISO_RESPALDOS
+        if flujos and not (programa in BUSCADORES and busca_sin_mostrar(programa, args)):
+            return AVISO_FLUJO
         if programa in BUSCADORES and busca_sin_mostrar(programa, args):
             return None
         if secretos:
@@ -290,6 +314,8 @@ def revisar_etapa(etapa: str, cwd: str) -> str | None:
 
 def claves_expuestas(comando: str, cwd: str) -> str | None:
     """Solo se llama cuando el comando o la carpeta actual son del sistema."""
+    if RE_CLAVE_ESCRITA.search(comando) or RE_CLAVE_CON_VALOR.search(comando):
+        return AVISO_CLAVE_EN_COMANDO
     for m in RE_REDIR_PISA.finditer(comando):
         if es_env_exacto(m.group(1)):
             return AVISO_PISAR
@@ -298,6 +324,8 @@ def claves_expuestas(comando: str, cwd: str) -> str | None:
             return AVISO_CLAVES
         if es_respaldo(m.group(1)):
             return AVISO_RESPALDOS
+        if es_flujo(m.group(1), cwd):
+            return AVISO_FLUJO
     if RE_CARGA_ENV.search(comando) and RE_MUESTRA_VARS.search(comando):
         return AVISO_CLAVES
     if RE_CODIGO_EN_LINEA.search(comando) and (
@@ -390,6 +418,8 @@ def pre_read(datos: dict) -> None:
             break
     if ruta and es_respaldo(ruta):
         bloquear(AVISO_RESPALDOS)
+    if ruta and es_flujo(ruta, cwd) and (herramienta != "Grep" or (entrada.get("output_mode") or "") == "content"):
+        bloquear(AVISO_FLUJO)
     es_grep = herramienta == "Grep" or ("pattern" in entrada and "file_path" not in entrada)
     if not es_grep:
         if ruta and del_sistema(ruta) and es_env_secreto(ruta):
@@ -423,6 +453,8 @@ def pre_stage(datos: dict) -> None:
         bloquear(AVISO_CLAVES)
     if any(es_respaldo(r) for r in rutas):
         bloquear(AVISO_RESPALDOS)
+    if any(es_flujo(r) for r in rutas):
+        bloquear(AVISO_FLUJO)
 
 
 def pre_commit(datos: dict) -> None:

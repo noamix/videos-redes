@@ -15,6 +15,8 @@ Todo con planes gratis. Lo único pago es Claude, y solo para armarlo.
 - **Fuente Inter** (Google Fonts): la letra de los videos. https://fonts.google.com
 - **Servicio de usuario de systemd:** deja el motor siempre andando. Viene con Linux.
 
+El motor (`sistema/`) viene en el plugin. HyperFrames y GSAP se instalan solos con `bash instalar.sh` (versiones fijas), y n8n lo levanta su `docker-compose.yml`.
+
 ## Servicios en la red
 
 - **Claude**, con Claude Code y la extensión Claude in Chrome: para armar todo (requiere plan pago de Claude). Después el sistema anda solo, sin Claude. https://claude.ai

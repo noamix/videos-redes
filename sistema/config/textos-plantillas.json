@@ -1,0 +1,74 @@
+{
+  "_ayuda": [
+    "Frases con las que el sistema arma los textos de cada video SIN IA (gratis, sin claves). Son el respaldo de Gemini.",
+    "Rotan solas: cada vez que le toca a una línea, usa la frase siguiente de cada lista. Al rehacer un video, cambia de frase.",
+    "Podés agregar, sacar o cambiar frases. Largos máximos: gancho 40 caracteres, título 28, punto 30, cierre 32, sub 44.",
+    "Marcadores que se completan solos: {medida} (30 x 40), {cantidad} (100), {nombre}, {nombre_corto}, {web}, {marca}. Si a un producto le falta el dato, esa frase se saltea.",
+    "'lineas': frases propias de cada línea (mismo nombre que en config/lineas.json); '_ejemplo_linea' muestra el formato y no se usa.",
+    "'productos': frases para productos puntuales ('si' es una parte del nombre, sin tildes). 'rasgos': si el nombre o los detalles dicen algo, suma ese punto.",
+    "Reglas que controla el sistema: voseo, sin precios (salvo mostrar_precio SI), sin teléfonos, sin signos de exclamación en las pantallas y sin las palabras prohibidas de config/negocio.json.",
+    "Después de cambiar algo, corré: npm run chequeo (revisa que todas las frases pasen el control)."
+  ],
+  "comunes": {
+    "titulos": [
+      "Lo que tenés que saber",
+      "En detalle"
+    ],
+    "puntos_extra": [
+      "Compra simple en la web"
+    ],
+    "cierres": [
+      "Hacé tu pedido hoy",
+      "Comprá online",
+      "Pedí online hoy"
+    ],
+    "subs": [
+      "Todo el catálogo en la web",
+      "Comprás online, sin vueltas"
+    ],
+    "captions": [
+      "{p1}\n{nombre}: {detalles}.\n👉 Pedí online en {web}",
+      "{nombre}.\n{Detalles}.\nHacé tu pedido en {web} 👈"
+    ],
+    "caption_minima": "{nombre}.\nHacé tu pedido en {web} 👈"
+  },
+  "lineas": {
+    "_ejemplo_linea": {
+      "nombre": "{nombre_corto} de {medida} cm",
+      "punto_medida": "Medida {medida} cm",
+      "punto_cantidad": "Pack de {cantidad} unidades",
+      "ganchos": [
+        "Lo que tu negocio necesita",
+        "¿Ya conocés {nombre_corto}?"
+      ],
+      "titulos": [
+        "Medida {medida} cm",
+        "Lo que trae cada pack"
+      ],
+      "puntos_extra": [
+        "Ideal para tu negocio"
+      ],
+      "cierres": [
+        "Pedilo hoy",
+        "Elegí tu medida"
+      ],
+      "subs": [
+        "Medidas y precios en la web"
+      ],
+      "captions": [
+        "{p1}\n{nombre}: {detalles}.\n👉 Pedilo en {web}"
+      ]
+    }
+  },
+  "productos": [],
+  "rasgos": [
+    { "si": "\\bnegr[ao]s?\\b", "punto": "Color negro" },
+    { "si": "\\bblanc[ao]s?\\b", "punto": "Color blanco" },
+    { "si": "\\brojo?s?\\b|\\brojas?\\b", "punto": "Color rojo" },
+    { "si": "\\bazul(es)?\\b", "punto": "Color azul" },
+    { "si": "\\bverdes?\\b", "punto": "Color verde" },
+    { "si": "amarill", "punto": "Color amarillo" },
+    { "si": "\\bgris(es)?\\b", "punto": "Color gris" },
+    { "si": "\\bbeige\\b", "punto": "Color beige" }
+  ]
+}

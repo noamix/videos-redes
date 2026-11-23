@@ -13,7 +13,7 @@
 - **Aprobar o rehacer el video en Telegram.** Lleva segundos. Rehacer arma otro al toque, con otros textos.
 - Si lo aprobás después de la hora, sale en la próxima vuelta: cada 15 minutos, hasta las 23.
 - Si no lo aprobás, ese día no se publica nada.
-- **Dejar la PC prendida** a la hora de publicar. Si se apagó, al prenderla todo arranca solo; si todavía no son las 23, el video aprobado del día sale en la próxima vuelta.
+- **Dejar la PC prendida** a la hora de publicar. Si se apagó, al prenderla todo arranca solo; si todavía no son las 23, el video aprobado del día sale en la próxima vuelta. Si ya pasó el día, queda `aprobado`: cambiá la fecha de esa fila a hoy y sale en la próxima vuelta.
 
 ## La planilla
 
@@ -32,8 +32,12 @@
 | `publicado` | Salió. Los links están en la fila. |
 | `publicar_a_mano` | No se pudo publicar solo. El video está en la carpeta `salida` y el texto en la fila: subilo vos desde el celular. |
 | `error_ig` | Falló Instagram. Mirá el aviso de Telegram. |
+| `error` | Falló el armado del video. El detalle está en la columna `nota`; cuando esté resuelto, poné `pendiente`. |
+| `pausado` | Ese día no hay video (lo ponés vos). |
 
 No cambies los nombres de las hojas ni de las columnas: el sistema los usa.
+
+**Otro producto un día:** cambiá `producto_id` y `producto`, borrá los textos y poné `pendiente`. **Tus propios textos:** editalos en la fila y poné `pendiente`: el video sale con tus textos tal cual.
 
 ## Los avisos de Telegram
 
@@ -51,22 +55,20 @@ Con tus palabras, en Claude Code en la PC del sistema:
 
 - "Cambiá la hora a las 20."
 - "Pausá los videos hasta el lunes." / "Volvé a activar los videos."
+- "Pasá al estilo clásico." / "Sumá el logo en el cierre."
+- "Que los textos nunca digan de dónde somos."
 - "Cambiá los colores del video a…" (si tenés un video de ejemplo, pasáselo).
 - "Sacá el WhatsApp del cierre." / "Cambiá el WhatsApp a…"
 - "Dejá de publicar en TikTok."
 
 Antes de cambiar algo hace un respaldo, después prueba sin publicar y te avisa.
 
-## Publicar ya
+## Si necesitás que salga antes de la hora
 
-Si necesitás que el video aprobado de hoy salga antes de la hora, abrí una terminal en la PC y escribí:
+Claude no publica por su cuenta: lo que sale, sale porque lo aprobaste vos. Si un día necesitás publicar antes, tenés dos caminos:
 
-```
-cd ~/videos-redes
-npm run publicar-ahora
-```
-
-Claude no publica por su cuenta: publicar lo decidís vos.
+- Subir vos el video desde la carpeta `salida` (el texto está en la planilla).
+- Pedirle a Claude que cambie la hora de publicación (y que después la vuelva a poner).
 
 ## Las claves
 

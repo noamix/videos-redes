@@ -1,0 +1,29 @@
+{
+  "name": "videos-redes-sistema",
+  "version": "2.0.0",
+  "description": "Videos diarios de productos para Instagram, TikTok y YouTube Shorts: planilla + n8n + HyperFrames + Gemini + Telegram + Buffer",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node motor/servidor.mjs",
+    "chequeo": "node motor/chequeo.mjs",
+    "prueba": "node motor/prueba.mjs",
+    "n8n": "node motor/armar-n8n.mjs",
+    "ig-conectar": "node motor/ig-conectar.mjs",
+    "ig-probar": "node motor/ig-probar.mjs",
+    "redes-probar": "node motor/redes-probar.mjs",
+    "cargar-clave": "node motor/cargar-clave.mjs",
+    "respaldo": "node motor/respaldo.mjs",
+    "pruebas": "node pruebas/pruebas.mjs",
+    "vista-previa": "cd plantilla-cajas && HYPERFRAMES_NO_TELEMETRY=1 npx hyperframes preview",
+    "vista-previa-clasico": "cd plantilla && HYPERFRAMES_NO_TELEMETRY=1 npx hyperframes preview"
+  },
+  "dependencies": {
+    "gsap": "3.15.1",
+    "hyperframes": "0.9.41"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "_ayuda": [
+    "Una entrada por cada línea de productos. La columna 'linea' de la hoja Productos usa estos mismos nombres (por ejemplo 'remeras', 'tazas').",
+    "default: se usa para los productos sin línea o con una línea que no está acá.",
+    "etiqueta: la categoría que sale arriba en la primera pantalla. gancho_respaldo y cierre_respaldo: frases de último recurso.",
+    "Colores (estilo clásico), opcionales: color_fondo, color_tinta (texto), color_acento, color_acento_tinta (texto sobre el acento) y color_brillo. Si una línea no los tiene, usa los colores de la marca de config/negocio.json.",
+    "beneficios (estilo cajas): hasta 3 cosas que se cumplen SIEMPRE, por ejemplo 'Envíos a todo el país'. Salen en el cierre.",
+    "reglas: indicaciones para la IA en esa línea. palabras_prohibidas: palabras que nunca pueden salir en esa línea.",
+    "hashtags: los de base del posteo (TikTok usa los primeros 5).",
+    "Se vuelve a leer en cada video: no hace falta reiniciar el motor."
+  ],
+  "default": {
+    "nombre": "Productos",
+    "etiqueta": "",
+    "hashtags": [],
+    "reglas": "",
+    "beneficios": [],
+    "palabras_prohibidas": []
+  }
+}

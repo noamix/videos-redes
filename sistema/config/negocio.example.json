@@ -1,0 +1,22 @@
+{
+  "_ayuda": "Datos del negocio. Copialo como config/negocio.json y completalo. Sin claves (las claves van en el .env). El motor lo vuelve a leer solo cuando cambia: no hace falta reiniciarlo.",
+  "nombre": "TU MARCA",
+  "web": "https://www.tumarca.com.ar",
+  "web_texto": "",
+  "que_vende": "una fábrica argentina de … para comercios y emprendedores",
+  "publico": "comercios, emprendedores y tiendas online de Argentina",
+  "cuentas": { "instagram": "@tumarca", "tiktok": "@tumarca", "youtube": "@tumarca" },
+  "hora_publicacion": "19:00",
+  "zona_horaria": "America/Argentina/Buenos_Aires",
+  "whatsapp": "",
+  "estilo": "cajas",
+  "colores": { "principal": "#F7CE00", "oscuro": "#0B0B0B" },
+  "logo": "",
+  "rotacion": [],
+  "dias_adelante": 7,
+  "max_por_corrida": 2,
+  "reglas_textos": "",
+  "palabras_prohibidas": [],
+  "producto_prueba": { "producto": "", "link": "", "linea": "" },
+  "pausado": false
+}

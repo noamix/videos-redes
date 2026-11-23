@@ -7,7 +7,7 @@ description: Usar para armar o mantener un sistema gratis que hace un video cort
 
 Probado en noviembre de 2026 con una pyme argentina. Todo con planes gratis; solo hace falta una PC prendida a la hora de publicar.
 
-En el plugin videos-redes, la carpeta, los comandos y las claves de la PC están en `references/en-la-pc.md`, y los programas, servicios y cuentas con sus links, en `RECURSOS.md` (raíz del plugin, la carpeta que contiene `skills/`).
+En el plugin videos-redes, el motor ya programado está en `sistema/` (raíz del plugin, la carpeta que contiene `skills/`): se instala con `/videos-redes:armar`, no se programa de cero. La carpeta, los comandos, las claves y los archivos de la PC están en `references/en-la-pc.md`, y los programas, servicios y cuentas con sus links, en `RECURSOS.md` (raíz del plugin).
 
 ## Qué hace
 1. **Elige el producto:** cada día toma uno del catálogo (una planilla) y rota por líneas de producto.

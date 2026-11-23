@@ -10,8 +10,8 @@
     {
       "name": "videos-redes",
       "source": "./",
-      "description": "Arma y mantiene un sistema gratis que hace un video corto de producto por día con las fotos de tu web, te lo manda a Telegram para que lo apruebes y lo publica solo en Instagram, TikTok y YouTube Shorts a la hora que elijas (HyperFrames, Gemini gratis, n8n, Meta y Buffer). Las pruebas son siempre sin publicar y las claves no pasan por el chat.",
-      "version": "0.1.0",
+      "description": "Arma y mantiene un sistema gratis que hace un video corto de producto por día con las fotos de tu web, te lo manda a Telegram para que lo apruebes y lo publica solo en Instagram, TikTok y YouTube Shorts a la hora que elijas. Trae el motor ya programado y probado (HyperFrames, Gemini gratis, n8n, Meta y Buffer). Las pruebas son siempre sin publicar y las claves no pasan por el chat.",
+      "version": "0.2.0",
       "author": {
         "name": "Leo"
       },

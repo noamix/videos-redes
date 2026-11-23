@@ -1,0 +1,595 @@
+<!doctype html>
+<html
+  lang="es"
+  data-resolution="portrait"
+  data-composition-variables='[
+    {"id":"etiqueta","type":"string","label":"Etiqueta de la línea","default":"Producto destacado"},
+    {"id":"p1","type":"string","label":"Pantalla 1: gancho","default":"Mirá lo nuevo de la tienda"},
+    {"id":"p2_titulo","type":"string","label":"Pantalla 2: título","default":"Lo que tenés que saber"},
+    {"id":"p2_punto_1","type":"string","label":"Pantalla 2: punto 1","default":"45 x 40 x 10 cm"},
+    {"id":"p2_punto_2","type":"string","label":"Pantalla 2: punto 2","default":"Pack de 100 unidades"},
+    {"id":"p2_punto_3","type":"string","label":"Pantalla 2: punto 3","default":"Ideal para tu negocio"},
+    {"id":"p3_titulo","type":"string","label":"Pantalla 3: cierre","default":"Hacé tu pedido hoy"},
+    {"id":"p3_sub","type":"string","label":"Pantalla 3: bajada","default":"Precios y colores en la web"},
+    {"id":"web","type":"string","label":"Web","default":"tumarca.com.ar"},
+    {"id":"marca","type":"string","label":"Marca","default":"TU MARCA"},
+    {"id":"usar_logo","type":"boolean","label":"Usar logo en vez del nombre","default":false},
+    {"id":"foto_1_ar","type":"number","label":"Proporción foto 1 (ancho/alto)","default":1,"min":0.3,"max":3,"step":0.01},
+    {"id":"foto_2_ar","type":"number","label":"Proporción foto 2 (ancho/alto)","default":1,"min":0.3,"max":3,"step":0.01},
+    {"id":"foto_3_ar","type":"number","label":"Proporción foto 3 (ancho/alto)","default":1,"min":0.3,"max":3,"step":0.01},
+    {"id":"color_fondo","type":"color","label":"Color de fondo","default":"#12352B"},
+    {"id":"color_tinta","type":"color","label":"Color del texto","default":"#FFFFFF"},
+    {"id":"color_acento","type":"color","label":"Color de acento","default":"#B7E36A"},
+    {"id":"color_acento_tinta","type":"color","label":"Texto sobre el acento","default":"#12352B"},
+    {"id":"color_brillo","type":"color","label":"Brillo del fondo (abajo a la derecha)","default":"#B7E36A"}
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <!-- GSAP local: el render no depende de internet -->
+    <script src="assets/vendor/gsap.min.js"></script>
+    <style>
+      /* Valores por defecto; el script los pisa con las variables de cada video. */
+      :root {
+        --color_fondo: #12352b;
+        --color_tinta: #ffffff;
+        --color_acento: #b7e36a;
+        --color_acento_tinta: #12352b;
+        --fuente-titulo: "Archivo Black", "Inter", sans-serif;
+        --fuente-texto: "Inter", sans-serif;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: var(--color_fondo);
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--color_fondo);
+        color: var(--color_tinta);
+        font-family: var(--fuente-texto);
+      }
+      .capa {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1080px;
+        height: 1920px;
+      }
+
+      /* ---------- Fondo (siempre visible) ---------- */
+      #fondo {
+        z-index: 0;
+        overflow: hidden;
+      }
+      #fondo-rayas {
+        position: absolute;
+        left: -240px;
+        top: -240px;
+        width: 1560px;
+        height: 2400px;
+        background: repeating-linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.035) 0 3px,
+          transparent 3px 46px
+        );
+      }
+      #fondo-marca {
+        position: absolute;
+        left: 60px;
+        top: 1430px;
+        font-family: var(--fuente-titulo);
+        font-size: 300px;
+        line-height: 1;
+        white-space: nowrap;
+        color: transparent;
+        -webkit-text-stroke: 3px color-mix(in srgb, var(--color_tinta) 11%, transparent);
+      }
+      #fondo-circulo {
+        position: absolute;
+        left: 300px;
+        top: 1080px;
+        width: 1400px;
+        height: 1400px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          color-mix(in srgb, var(--color_brillo, var(--color_acento)) 34%, transparent) 0%,
+          transparent 66%
+        );
+      }
+
+      /* ---------- Barras de progreso (3 pantallas) ---------- */
+      #progreso {
+        position: absolute;
+        left: 80px;
+        top: 192px;
+        width: 920px;
+        height: 8px;
+        display: flex;
+        gap: 14px;
+        z-index: 40;
+      }
+      .barra {
+        flex: 1;
+        height: 8px;
+        border-radius: 4px;
+        background: color-mix(in srgb, var(--color_tinta) 26%, transparent);
+        overflow: hidden;
+      }
+      .relleno {
+        width: 100%;
+        height: 100%;
+        border-radius: 4px;
+        background: var(--color_tinta);
+        transform-origin: 0 50%;
+      }
+
+      /* ---------- Piezas comunes ---------- */
+      .chip {
+        position: absolute;
+        left: 80px;
+        top: 236px;
+        height: 64px;
+        padding: 0 30px;
+        border-radius: 32px;
+        background: var(--color_acento);
+        color: var(--color_acento_tinta);
+        font: 700 30px/64px var(--fuente-texto);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .titulo {
+        position: absolute;
+        left: 80px;
+        width: 880px;
+        font-family: var(--fuente-titulo);
+        font-weight: 400;
+        line-height: 1.02;
+        letter-spacing: -0.015em;
+        color: var(--color_tinta);
+        overflow-wrap: normal;
+        hyphens: none;
+        text-wrap: balance;
+      }
+      .flota {
+        position: absolute;
+        left: 80px;
+        width: 920px;
+      }
+      .tarjeta {
+        position: absolute;
+        inset: 0;
+        background: #ffffff;
+        border-radius: 40px;
+        overflow: hidden;
+        box-shadow: 0 34px 80px rgba(0, 0, 0, 0.38);
+      }
+      .foto {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 20px;
+      }
+
+      /* ---------- Pantalla 1 ---------- */
+      #e1-titulo {
+        top: 336px;
+      }
+      #e1-subrayado {
+        position: absolute;
+        left: 80px;
+        width: 260px;
+        height: 16px;
+        border-radius: 8px;
+        background: var(--color_acento);
+        transform-origin: 0 50%;
+      }
+
+      /* ---------- Pantalla 2 ---------- */
+      #e2-lista {
+        position: absolute;
+        left: 80px;
+        width: 880px;
+        list-style: none;
+      }
+      .punto {
+        position: relative;
+        height: 76px;
+        display: flex;
+        align-items: center;
+        gap: 26px;
+      }
+      .tilde {
+        flex: 0 0 auto;
+        width: 54px;
+        height: 54px;
+        border-radius: 15px;
+        background: var(--color_acento);
+        position: relative;
+      }
+      .tilde::after {
+        content: "";
+        position: absolute;
+        left: 19px;
+        top: 9px;
+        width: 13px;
+        height: 25px;
+        border-right: 7px solid var(--color_acento_tinta);
+        border-bottom: 7px solid var(--color_acento_tinta);
+        transform: rotate(45deg);
+      }
+      .punto-txt {
+        font: 700 50px/1.1 var(--fuente-texto);
+        color: var(--color_tinta);
+        white-space: nowrap;
+      }
+
+      /* ---------- Pantalla 3 ---------- */
+      #e3-marca {
+        position: absolute;
+        left: 80px;
+        top: 236px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+      }
+      #e3-marca-txt {
+        font: 900 44px/64px var(--fuente-texto);
+        letter-spacing: 0.08em;
+        color: var(--color_tinta);
+      }
+      #e3-logo {
+        height: 96px;
+        width: auto;
+        display: none;
+      }
+      #e3-cta {
+        position: absolute;
+        left: 80px;
+        width: 920px;
+        border-radius: 36px;
+        background: var(--color_acento);
+        transform-origin: 0 50%;
+      }
+      #e3-cta-txt {
+        position: absolute;
+        left: 44px;
+        top: 34px;
+        width: 832px;
+        font-family: var(--fuente-titulo);
+        line-height: 1.02;
+        letter-spacing: -0.015em;
+        color: var(--color_acento_tinta);
+        text-wrap: balance;
+      }
+      #e3-sub {
+        position: absolute;
+        left: 80px;
+        width: 880px;
+        font: 700 42px/1.15 var(--fuente-texto);
+        color: var(--color_tinta);
+        white-space: nowrap;
+      }
+      #e3-pill {
+        position: absolute;
+        left: 80px;
+        height: 88px;
+        padding: 0 40px;
+        border-radius: 44px;
+        background: var(--color_tinta);
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+      #e3-web {
+        font: 900 42px/88px var(--fuente-texto);
+        color: var(--color_fondo);
+        white-space: nowrap;
+      }
+      #e3-flecha {
+        width: 44px;
+        height: 44px;
+        display: block;
+        color: var(--color_fondo);
+      }
+
+      /* ---------- Cortinas entre pantallas ---------- */
+      .cortina {
+        z-index: 50;
+        overflow: hidden;
+      }
+      .panel {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1080px;
+        height: 1920px;
+        background: var(--color_acento);
+      }
+      .panel-franja {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1080px;
+        height: 1920px;
+        background: var(--color_tinta);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="15"
+      data-width="1080"
+      data-height="1920"
+    >
+      <!-- Fondo -->
+      <div id="fondo" class="capa" data-layout-allow-overflow>
+        <div id="fondo-rayas"></div>
+        <div id="fondo-circulo"></div>
+        <div id="fondo-marca">TU MARCA</div>
+      </div>
+
+      <!-- Progreso -->
+      <div id="progreso">
+        <div class="barra"><div id="barra-1" class="relleno"></div></div>
+        <div class="barra"><div id="barra-2" class="relleno"></div></div>
+        <div class="barra"><div id="barra-3" class="relleno"></div></div>
+      </div>
+
+      <!-- Pantalla 1: gancho (ya armada en el cuadro 0, que es la miniatura) -->
+      <div id="e1" class="clip capa" data-start="0" data-duration="5" data-track-index="1" style="z-index: 10">
+        <div id="e1-chip" class="chip"><span id="e1-chip-txt" data-var-text="etiqueta">Producto destacado</span></div>
+        <h1 id="e1-titulo" class="titulo" data-var-text="p1">Mirá lo nuevo de la tienda</h1>
+        <div id="e1-subrayado"></div>
+        <div id="e1-flota" class="flota">
+          <div class="tarjeta" data-layout-allow-overflow><img id="e1-foto" class="foto" src="assets/fotos/foto_1.jpg" alt="" /></div>
+        </div>
+      </div>
+
+      <!-- Pantalla 2: detalle -->
+      <div id="e2" class="clip capa" data-start="5" data-duration="5" data-track-index="2" style="z-index: 10">
+        <div id="e2-flota" class="flota">
+          <div class="tarjeta" data-layout-allow-overflow><img id="e2-foto" class="foto" src="assets/fotos/foto_2.jpg" alt="" /></div>
+        </div>
+        <h2 id="e2-titulo" class="titulo" data-var-text="p2_titulo">Lo que tenés que saber</h2>
+        <ul id="e2-lista">
+          <li id="e2-p1" class="punto"><span id="e2-t1" class="tilde"></span><span id="e2-x1" class="punto-txt" data-var-text="p2_punto_1">45 x 40 x 10 cm</span></li>
+          <li id="e2-p2" class="punto"><span id="e2-t2" class="tilde"></span><span id="e2-x2" class="punto-txt" data-var-text="p2_punto_2">Pack de 100 unidades</span></li>
+          <li id="e2-p3" class="punto"><span id="e2-t3" class="tilde"></span><span id="e2-x3" class="punto-txt" data-var-text="p2_punto_3">Ideal para tu negocio</span></li>
+        </ul>
+      </div>
+
+      <!-- Pantalla 3: cierre -->
+      <div id="e3" class="clip capa" data-start="10" data-duration="5" data-track-index="3" style="z-index: 10">
+        <div id="e3-marca">
+          <img id="e3-logo" src="assets/marca/logo.png" alt="" />
+          <span id="e3-marca-txt" data-var-text="marca">TU MARCA</span>
+        </div>
+        <div id="e3-flota" class="flota">
+          <div class="tarjeta" data-layout-allow-overflow><img id="e3-foto" class="foto" src="assets/fotos/foto_3.jpg" alt="" /></div>
+        </div>
+        <div id="e3-cta"><div id="e3-cta-txt" data-var-text="p3_titulo">Hacé tu pedido hoy</div></div>
+        <div id="e3-sub" data-var-text="p3_sub">Precios y colores en la web</div>
+        <div id="e3-pill">
+          <span id="e3-web" data-var-text="web">tumarca.com.ar</span>
+          <svg id="e3-flecha" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 5l7 7-7 7" /></svg>
+        </div>
+      </div>
+
+      <!-- Cortinas -->
+      <div id="c1" class="clip capa cortina" data-start="4.7" data-duration="0.6" data-track-index="5">
+        <div id="c1-franja" class="panel-franja"></div>
+        <div id="c1-panel" class="panel"></div>
+      </div>
+      <div id="c2" class="clip capa cortina" data-start="9.7" data-duration="0.6" data-track-index="5">
+        <div id="c2-franja" class="panel-franja"></div>
+        <div id="c2-panel" class="panel"></div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        // ---- Variables del video (las define el motor en cada render) ----
+        var declaradas = JSON.parse(document.documentElement.getAttribute("data-composition-variables") || "[]");
+        var V = {};
+        declaradas.forEach(function (d) { V[d.id] = d["default"]; });
+        try {
+          var H = window.__hyperframes;
+          if (H && typeof H.getVariables === "function") {
+            var resueltas = H.getVariables() || {};
+            Object.keys(resueltas).forEach(function (k) { V[k] = resueltas[k]; });
+          }
+        } catch (e) {}
+
+        function $(id) { return document.getElementById(id); }
+        // Pone el texto. Las palabras con guion ("e-commerce") y las medidas ("45 x 40 x 10 cm") van enteras: nunca se cortan.
+        function texto(id, valor) {
+          var el = $(id);
+          if (!el) return el;
+          var s = valor == null ? "" : String(valor);
+          el.textContent = "";
+          s.split(/(\S*\S-\S\S*|\d+(?:\s*[x×]\s*\d+)+(?:\s*cm\b)?)/i).forEach(function (parte, i) {
+            if (!parte) return;
+            if (i % 2 === 1) {
+              var sp = document.createElement("span");
+              sp.style.whiteSpace = "nowrap";
+              sp.textContent = parte;
+              el.appendChild(sp);
+            } else {
+              el.appendChild(document.createTextNode(parte));
+            }
+          });
+          return el;
+        }
+
+        ["color_fondo", "color_tinta", "color_acento", "color_acento_tinta", "color_brillo"].forEach(function (k) {
+          if (V[k]) document.documentElement.style.setProperty("--" + k, V[k]);
+        });
+
+        texto("e1-chip-txt", V.etiqueta);
+        // Sin etiqueta, el chip no se muestra (si no, queda un punto de color vacío).
+        if (!String(V.etiqueta || "").trim()) $("e1-chip").style.display = "none";
+        texto("e1-titulo", V.p1);
+        texto("e2-titulo", V.p2_titulo);
+        texto("e2-x1", V.p2_punto_1);
+        texto("e2-x2", V.p2_punto_2);
+        texto("e2-x3", V.p2_punto_3);
+        texto("e3-cta-txt", V.p3_titulo);
+        texto("e3-sub", V.p3_sub);
+        texto("e3-web", V.web);
+        texto("e3-marca-txt", V.marca);
+        texto("fondo-marca", V.marca);
+        var usarLogo = V.usar_logo === true || V.usar_logo === "true";
+        $("e3-logo").style.display = usarLogo ? "block" : "none";
+        $("e3-marca-txt").style.display = usarLogo ? "none" : "inline";
+
+        // Achica la letra hasta que el texto entre en el ancho y alto disponibles.
+        function ajustar(el, maxAncho, maxAlto, grande, chica) {
+          var t = grande;
+          el.style.fontSize = t + "px";
+          while ((el.scrollHeight > maxAlto || el.scrollWidth > maxAncho) && t > chica) {
+            t -= 2;
+            el.style.fontSize = t + "px";
+          }
+          return t;
+        }
+
+        // Ubica una tarjeta de foto: el ancho sigue la proporción de la foto y queda centrada.
+        function tarjeta(id, arriba, alto, proporcion) {
+          var pad = 20;
+          var a = Number(proporcion) > 0 ? Number(proporcion) : 1;
+          var ancho = Math.round(Math.min(920, Math.max(560, (alto - 2 * pad) * a + 2 * pad)));
+          var el = $(id);
+          el.style.top = arriba + "px";
+          el.style.height = alto + "px";
+          el.style.width = ancho + "px";
+          el.style.left = 80 + Math.round((920 - ancho) / 2) + "px";
+        }
+
+        function armar() {
+          // ---------- Pantalla 1 ----------
+          var t1 = $("e1-titulo");
+          ajustar(t1, 880, 430, 128, 64);
+          var finT1 = 336 + t1.offsetHeight;
+          $("e1-subrayado").style.top = finT1 + 22 + "px";
+          var arribaF1 = Math.max(finT1 + 86, 640);
+          tarjeta("e1-flota", arribaF1, 1318 - arribaF1, V.foto_1_ar);
+
+          // ---------- Pantalla 2 ----------
+          var puntos = [1, 2, 3].filter(function (i) {
+            var v = V["p2_punto_" + i];
+            var vacio = !v || !String(v).trim();
+            $("e2-p" + i).style.display = vacio ? "none" : "flex";
+            return !vacio;
+          });
+          puntos.forEach(function (i) { ajustar($("e2-x" + i), 800, 70, 50, 30); });
+          var altoLista = puntos.length * 76;
+          var lista = $("e2-lista");
+          var arribaLista = 1314 - altoLista;
+          lista.style.top = arribaLista + "px";
+          var t2 = $("e2-titulo");
+          ajustar(t2, 880, 172, 84, 52);
+          var arribaT2 = arribaLista - 30 - t2.offsetHeight;
+          t2.style.top = arribaT2 + "px";
+          tarjeta("e2-flota", 250, Math.max(arribaT2 - 44 - 250, 360), V.foto_2_ar);
+
+          // ---------- Pantalla 3 ----------
+          var pill = $("e3-pill");
+          ajustar($("e3-web"), 760, 88, 42, 30);
+          pill.style.top = 1318 - 88 + "px";
+          var sub = $("e3-sub");
+          ajustar(sub, 880, 54, 42, 28);
+          var arribaSub = 1318 - 88 - 26 - sub.offsetHeight;
+          sub.style.top = arribaSub + "px";
+          var ctaTxt = $("e3-cta-txt");
+          ajustar(ctaTxt, 832, 300, 96, 54);
+          var altoCta = ctaTxt.offsetHeight + 68;
+          var cta = $("e3-cta");
+          cta.style.height = altoCta + "px";
+          var arribaCta = arribaSub - 30 - altoCta;
+          cta.style.top = arribaCta + "px";
+          tarjeta("e3-flota", 336, Math.max(arribaCta - 48 - 336, 300), V.foto_3_ar);
+
+          // ---------- Línea de tiempo ----------
+          var tl = gsap.timeline({ paused: true });
+
+          // Fondo con movimiento suave todo el video
+          tl.fromTo("#fondo-circulo", { x: 0, y: 0 }, { x: -170, y: -140, duration: 15, ease: "none" }, 0);
+          tl.fromTo("#fondo-rayas", { x: 0 }, { x: 130, duration: 15, ease: "none" }, 0);
+          tl.fromTo("#fondo-marca", { x: 0 }, { x: -320, duration: 15, ease: "none" }, 0);
+
+          // Barras de progreso
+          tl.fromTo("#barra-1", { scaleX: 0 }, { scaleX: 1, duration: 5, ease: "none" }, 0);
+          tl.fromTo("#barra-2", { scaleX: 0 }, { scaleX: 1, duration: 5, ease: "none" }, 5);
+          tl.fromTo("#barra-3", { scaleX: 0 }, { scaleX: 1, duration: 5, ease: "none" }, 10);
+
+          // Pantalla 1: todo visible desde el cuadro 0; después, subrayado, flotado y zoom
+          tl.fromTo("#e1-subrayado", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "power3.out" }, 0.25);
+          tl.fromTo("#e1-flota", { y: 0 }, { y: -14, duration: 1.2, ease: "sine.inOut", repeat: 3, yoyo: true }, 0.1);
+          tl.fromTo("#e1-foto", { scale: 1 }, { scale: 1.12, duration: 0.55, ease: "power3.out" }, 2.4);
+
+          // Cortina 1 (tapa el corte en 5 s)
+          tl.fromTo("#c1-franja", { xPercent: -101 }, { xPercent: 0, duration: 0.26, ease: "power2.in" }, 4.7);
+          tl.fromTo("#c1-panel", { xPercent: -101 }, { xPercent: 0, duration: 0.3, ease: "power2.in" }, 4.7);
+          tl.to("#c1-panel", { xPercent: 101, duration: 0.24, ease: "power2.out" }, 5.0);
+          tl.to("#c1-franja", { xPercent: 101, duration: 0.24, ease: "power2.out" }, 5.06);
+
+          // Pantalla 2
+          tl.fromTo("#e2-flota", { xPercent: 14, opacity: 0 }, { xPercent: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 5.05);
+          tl.fromTo("#e2-foto", { scale: 1 }, { scale: 1.08, duration: 4.5, ease: "none" }, 5.3);
+          tl.fromTo("#e2-titulo", { y: 44, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 5.3);
+          puntos.forEach(function (i, n) {
+            var t = 5.95 + n * 0.7;
+            tl.fromTo("#e2-x" + i, { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.42, ease: "back.out(1.6)" }, t);
+            tl.fromTo("#e2-t" + i, { scale: 0 }, { scale: 1, duration: 0.36, ease: "back.out(2.2)" }, t + 0.06);
+          });
+
+          // Cortina 2 (tapa el corte en 10 s)
+          tl.fromTo("#c2-franja", { xPercent: -101 }, { xPercent: 0, duration: 0.26, ease: "power2.in" }, 9.7);
+          tl.fromTo("#c2-panel", { xPercent: -101 }, { xPercent: 0, duration: 0.3, ease: "power2.in" }, 9.7);
+          tl.to("#c2-panel", { xPercent: 101, duration: 0.24, ease: "power2.out" }, 10.0);
+          tl.to("#c2-franja", { xPercent: 101, duration: 0.24, ease: "power2.out" }, 10.06);
+
+          // Pantalla 3
+          tl.fromTo("#e3-marca", { y: -24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 10.15);
+          tl.fromTo("#e3-flota", { y: -70, opacity: 0, rotation: -7 }, { y: 0, opacity: 1, rotation: -2.5, duration: 0.6, ease: "back.out(1.4)" }, 10.05);
+          tl.fromTo("#e3-foto", { scale: 1 }, { scale: 1.06, duration: 4.4, ease: "none" }, 10.4);
+          tl.fromTo("#e3-cta", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "power3.out" }, 10.35);
+          tl.fromTo("#e3-cta-txt", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 10.6);
+          tl.fromTo("#e3-sub", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 10.95);
+          tl.fromTo("#e3-pill", { y: 34, opacity: 0, scale: 0.9 }, { y: 0, opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.7)" }, 11.25);
+          tl.to("#e3-pill", { scale: 1.07, duration: 0.18, ease: "power1.inOut", yoyo: true, repeat: 1 }, 12.6);
+          tl.to("#e3-pill", { scale: 1.07, duration: 0.18, ease: "power1.inOut", yoyo: true, repeat: 1 }, 13.7);
+          tl.fromTo("#e3-flecha", { x: 0 }, { x: 12, duration: 0.3, ease: "sine.inOut", yoyo: true, repeat: 5 }, 12.0);
+
+          window.__timelines["main"] = tl;
+        }
+
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(armar);
+        } else {
+          armar();
+        }
+      })();
+    </script>
+  </body>
+</html>
