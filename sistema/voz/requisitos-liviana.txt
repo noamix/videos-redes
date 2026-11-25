@@ -1,0 +1,3 @@
+# Python de la voz liviana (el modelo lo corre voxcpm2-cli, compilado en la compu)
+numpy>=1.26
+num2words>=0.5.13

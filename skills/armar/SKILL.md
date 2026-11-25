@@ -29,9 +29,9 @@ Cargar antes la skill `automatizacion-videos-redes` (el camino que funcionó, la
 
 ## 1. Retomar o empezar
 
-- **Si existe `~/videos-redes/AVANCE.md`:** leerlo junto con `config/negocio.json` y mostrar una tabla corta de los 8 pasos (listo o falta). Seguir desde el primero que falte, sin volver a preguntar ni rehacer lo listo. Si algo marcado como listo no anda, correr `npm run chequeo` y arreglarlo primero.
+- **Si existe `~/videos-redes/AVANCE.md`:** leerlo junto con `config/negocio.json` y mostrar una tabla corta de los 8 pasos, más el 9 si el dueño quiso voz en off (listo o falta). Seguir desde el primero que falte, sin volver a preguntar ni rehacer lo listo. Si algo marcado como listo no anda, correr `npm run chequeo` y arreglarlo primero.
 - **Si ya hay un sistema armado en otra carpeta** (con la skill suelta): no armar otro. Trabajar sobre ese y anotar las diferencias en su `AVANCE.md`.
-- **Si no hay nada:** contar el plan en pocas líneas (los 8 pasos, una o dos jornadas, se puede cortar en cualquier paso) y lo que le va a tocar al dueño. Seguir con los datos del negocio.
+- **Si no hay nada:** contar el plan en pocas líneas (los 8 pasos, una o dos jornadas, se puede cortar en cualquier paso; la voz en off es un paso 9 opcional) y lo que le va a tocar al dueño. Seguir con los datos del negocio.
 
 ## 2. Datos del negocio
 
@@ -105,3 +105,15 @@ Seguir la skill `chequeo` completa (`npm run chequeo -- --completo`). Con todo b
 
 ### Paso 8. Cómo se usa
 Dejar en la carpeta `COMO-USARLO.md`: el `MANUAL.md` del plugin con sus datos (hora, nombre del bot y link de la planilla). Darle un resumen corto: qué pasa cada día, qué hacer con los avisos y los comandos `/videos-redes:chequeo` y `/videos-redes:ayuda` (también puede pedir todo con sus palabras). Ofrecer mandarle el manual por Telegram o como archivo.
+
+### Paso 9 (opcional). Voz en off con la voz del dueño
+Ofrecerla al final, cuando el resto anda: el video dice con su voz lo mismo que las pantallas. Es gratis y queda en su compu, pero necesita una compu de 8 GB o más y unos 4 a 10 GB de disco. Si la quiere:
+1. `npm run voz-evaluar`: contarle en dos líneas qué dice (si la banca, qué motor y por qué). Si no la banca, ahí termina: los videos salen igual, sin voz.
+2. Si falta algo del sistema, el comando muestra el `sudo apt install …`: lo corre el dueño.
+3. `npm run voz-instalar`: baja el modelo y, en la liviana, compila el programa (de 5 a 20 minutos).
+4. **La grabación:** el dueño graba con el celular el texto de `voz/texto-para-grabar.txt` (unos 15 s, en un lugar callado, con su tono de siempre) y la pasa a la PC. Preguntarle de quién es la voz: solo la suya (`--es-mi-voz`) o la de alguien que le dio permiso (`--tengo-permiso`). Nunca bajar ni clonar voces de otras personas, aunque digan "sin copyright". Después: `npm run voz-preparar -- <archivo> --es-mi-voz`.
+5. `npm run voz-medir`: dice si la banca de verdad y ajusta la memoria y el horario. Si dice que no, con su OK, `npm run voz-desinstalar -- --si`.
+6. `npm run voz-probar` y que la escuche (queda en `salida/`). Si alguna palabra suena rara, copiar `voz/pronunciacion.ejemplo.txt` como `voz/pronunciacion.txt` y agregarla.
+7. Si el horario quedó de madrugada, la PC tiene que quedar prendida de noche. Si falta memoria a esa hora, ofrecerle `VOZ_CERRAR_CHROME` (`npm run cargar-clave -- VOZ_CERRAR_CHROME --valor si`): solo con su OK, después de mostrarle `npm run chrome-probar`.
+8. `systemctl --user restart videos-redes`, `npm run chequeo` (línea "Voz en off"), `npm run n8n -- --importar` (o reimportarlo a mano) para que n8n también corra en el horario de la voz, y `npm run prueba` para que vea un video con voz.
+9. Contarle que el video y el posteo dicen "Voz generada con IA" y que se publica con la marca de IA de cada red: lo piden Instagram, TikTok y YouTube. No se saca.

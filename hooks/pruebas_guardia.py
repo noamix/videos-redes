@@ -166,6 +166,9 @@ TRAER = [
     ({"paths": [OTRO + "/.env"]}, PASA),
     ({"paths": [RAIZ + "/n8n/flujo.json"]}, BLOQUEA),
     ({"paths": [RAIZ + "/n8n/docker-compose.yml"]}, PASA),
+    ({"paths": [RAIZ + "/voz/voces/mi-voz/referencia.wav"]}, BLOQUEA),
+    ({"paths": ["~/videos-redes/voz/voces"]}, BLOQUEA),
+    ({"paths": [RAIZ + "/voz/medicion.json", RAIZ + "/voz/compilacion.log"]}, PASA),
 ]
 
 LLEVAR = [

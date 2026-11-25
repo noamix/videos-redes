@@ -15,6 +15,13 @@ Todo con planes gratis. Lo único pago es Claude, y solo para armarlo.
 - **Fuente Inter** (Google Fonts): la letra de los videos. https://fonts.google.com
 - **Servicio de usuario de systemd:** deja el motor siempre andando. Viene con Linux.
 
+**Para la voz en off (opcional):**
+- **VoxCPM2** (OpenBMB, Apache-2.0): el modelo que arma la voz, con tu voz, en tu compu. https://github.com/OpenBMB/VoxCPM · https://huggingface.co/openbmb/VoxCPM2
+- **Voz liviana:** VoxCPM2 en GGUF (https://huggingface.co/DennisHuang648/VoxCPM2-GGUF) con **llama.cpp-omni** (MIT), que se compila en la compu. https://github.com/tc-mb/llama.cpp-omni. Para compilarlo: `cmake` y `build-essential` (Ubuntu).
+- **Voz completa:** el paquete `voxcpm` con **PyTorch** (https://pytorch.org). Para compus con placa NVIDIA de 8 GB o mucha memoria.
+- **Python 3.10 o más nuevo** con `python3-venv` (Ubuntu). `npm run voz-evaluar` dice qué falta.
+- Disco: unos 4 GB la liviana, de 8 a 12 GB la completa.
+
 El motor (`sistema/`) viene en el plugin. HyperFrames y GSAP se instalan solos con `bash instalar.sh` (versiones fijas), y n8n lo levanta su `docker-compose.yml`.
 
 ## Servicios en la red
@@ -46,6 +53,7 @@ El motor (`sistema/`) viene en el plugin. HyperFrames y GSAP se instalan solos c
 
 - **Costo mensual del sistema:** $0, todo con planes gratis. Lo único pago es Claude, para armarlo.
 - **Tiempo de armado:** nosotros lo hicimos en dos jornadas, de a pasos. Se puede cortar en cualquier paso y seguir otro día.
+- **Voz en off (opcional):** también gratis. Sumarla lleva una o dos horas (instalar, grabar tu voz y medir), según la compu.
 - **Uso diario:** aprobar cada video en Telegram (segundos). A la hora elegida sale solo en Instagram, TikTok y YouTube Shorts, y llegan los links por Telegram.
 
 ## Lo que se descartó, y por qué
@@ -55,3 +63,6 @@ El motor (`sistema/`) viene en el plugin. HyperFrames y GSAP se instalan solos c
 - **Programas pagos.**
 - **Que Claude programe los posteos a mano desde el navegador:** depende de Claude, y la subida de archivos de la extensión tiene un tope de 3,8 MB.
 - **WordPress para Instagram:** no hace falta, porque el video se sube directo a Meta. Queda solo de respaldo para Buffer.
+- **Voces de pago o en la nube para la voz en off:** cuestan plata y mandan tu voz afuera. VoxCPM2 corre en tu compu, gratis.
+- **VoxCPM 0.5B y 1.5 (más chicos):** hablan solo chino e inglés. La liviana usa el mismo VoxCPM2, comprimido.
+- **Voces de otras personas "sin copyright":** la licencia de una grabación no da permiso para clonar la voz de nadie. Solo tu voz o la de alguien que te autorizó.

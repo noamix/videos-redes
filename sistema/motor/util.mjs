@@ -22,6 +22,31 @@ export function horaLocal(d = new Date()) {
 export function ahoraTexto(d = new Date()) {
   return `${fechaLocal(d)} ${horaLocal(d)}`;
 }
+// ¿La hora local cae en el rango? "1-6" = de 1:00 a 6:59 · "23-7" = de 23:00 a 7:59 (cruza la medianoche).
+// Vacío o mal escrito = nunca.
+export function enRangoHorario(rango, d = new Date()) {
+  const m = String(rango || "").match(/^\s*(\d{1,2})\s*-\s*(\d{1,2})\s*$/);
+  if (!m) return false;
+  const h = Number(horaLocal(d).slice(0, 2));
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  return a <= b ? h >= a && h <= b : h >= a || h <= b;
+}
+
+// Un rango de horas para el campo "hora" de un cron: "1-6" → "1-6"; "23-5" (cruza la medianoche) → "23-23,0-5".
+// Vacío o mal escrito → "".
+export function horasCron(rango) {
+  const m = String(rango || "").match(/^\s*(\d{1,2})\s*-\s*(\d{1,2})\s*$/);
+  if (!m) return "";
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  if (a > 23 || b > 23) return "";
+  return a <= b ? `${a}-${b}` : `${a}-23,0-${b}`;
+}
+
+// "1-6" → "1 a 6" (para mostrar horarios).
+export const rangoTexto = (rango) => String(rango || "").replace(/\s*-\s*/, " a ");
+
 export function sumarDias(fechaIso, dias) {
   const [a, m, d] = fechaIso.split("-").map(Number);
   const x = new Date(Date.UTC(a, m - 1, d + dias, 12));
@@ -91,7 +116,7 @@ export function correr(programa, args, { cwd, env, timeoutMs = 10 * 60 * 1000 } 
 export async function sondear(archivo) {
   const r = await correr("ffprobe", [
     "-v", "error",
-    "-show_entries", "format=duration,size:stream=codec_type,width,height,r_frame_rate",
+    "-show_entries", "format=duration,size:format_tags=comment:stream=codec_type,width,height,r_frame_rate",
     "-of", "json",
     archivo,
   ], { timeoutMs: 60000 });
@@ -105,6 +130,8 @@ export async function sondear(archivo) {
     ancho: Number(video.width || 0),
     alto: Number(video.height || 0),
     tieneAudio: Boolean(audio),
+    // El motor marca con este comentario los videos que llevan voz hecha con IA.
+    comentario: String(d.format?.tags?.comment || ""),
   };
 }
 

@@ -3,7 +3,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { CONFIG, RUTAS } from "./config.mjs";
 import { instagramConfigurado } from "./instagram.mjs";
-import { ahoraTexto, escribirJson, esperar, leerJson, log, traer } from "./util.mjs";
+import { horarioVozTexto, soloUrgentes } from "./voz.mjs";
+import { ahoraTexto, enRangoHorario, escribirJson, esperar, fechaLocal, leerJson, log, sumarDias, traer } from "./util.mjs";
+
+// En las horas de TELEGRAM_SILENCIO (por defecto de 23 a 7) los mensajes llegan sin sonido.
+export const enSilencio = (d = new Date()) => enRangoHorario(CONFIG.telegram.silencio, d);
 
 const ESTADO = path.join(RUTAS.datos, "telegram.json");
 const PENDIENTES = path.join(RUTAS.datos, "respuestas-pendientes.json");
@@ -35,14 +39,22 @@ export function fechaBonita(fecha) {
 
 export async function enviarTexto(texto) {
   if (!telegramConfigurado()) return null;
-  return api("sendMessage", { chat_id: CONFIG.telegram.chat, text: texto.slice(0, 4000), disable_web_page_preview: true });
+  return api("sendMessage", {
+    chat_id: CONFIG.telegram.chat,
+    text: texto.slice(0, 4000),
+    disable_web_page_preview: true,
+    disable_notification: enSilencio(),
+  });
 }
 
-export async function enviarRevision({ fecha, producto, ruta, caption, avisos = [], rehecho = false, prueba = false }) {
+export async function enviarRevision({ fecha, producto, ruta, caption, avisos = [], rehecho = false, prueba = false, frasesVoz = null }) {
   if (!telegramConfigurado()) return null;
+  const silencio = enSilencio();
+  const voz = frasesVoz?.length ? `🎙️ Voz: ${frasesVoz.map((f) => `«${f}»`).join(" ")}` : "";
   const cabecera = [
     prueba ? "🧪 VIDEO DE PRUEBA: los botones no cambian la planilla." : "",
     `🎬 ${rehecho ? "Nueva versión · " : ""}${fechaBonita(fecha)} · ${producto}`,
+    voz,
     avisos.length ? `⚠️ ${avisos.join(" · ")}` : "",
     "",
     instagramConfigurado()
@@ -50,13 +62,14 @@ export async function enviarRevision({ fecha, producto, ruta, caption, avisos = 
       : `Si lo aprobás, el ${fechaBonita(fecha)} a las ${CONFIG.horaPublicacion} te aviso para subirlo.`,
     "En el mensaje siguiente va el texto para el posteo (y para TikTok).",
   ]
-    .filter((l, i) => l || i === 3)
+    .filter((l, i) => l || i === 4) // la línea en blanco separa los avisos de lo que pasa al aprobar
     .join("\n")
     .slice(0, 1000);
   const form = new FormData();
   form.append("chat_id", CONFIG.telegram.chat);
   form.append("caption", cabecera);
   form.append("supports_streaming", "true");
+  if (silencio) form.append("disable_notification", "true");
   form.append("width", "1080");
   form.append("height", "1920");
   form.append("duration", "15");
@@ -74,7 +87,12 @@ export async function enviarRevision({ fecha, producto, ruta, caption, avisos = 
   const buf = await fs.readFile(ruta);
   form.append("video", new Blob([buf], { type: "video/mp4" }), path.basename(ruta));
   const msg = await api("sendVideo", form, 180000);
-  await api("sendMessage", { chat_id: CONFIG.telegram.chat, text: caption.slice(0, 4000), disable_web_page_preview: true });
+  await api("sendMessage", {
+    chat_id: CONFIG.telegram.chat,
+    text: caption.slice(0, 4000),
+    disable_web_page_preview: true,
+    disable_notification: silencio,
+  });
   return msg.message_id;
 }
 
@@ -134,22 +152,34 @@ async function procesar(u, alDecidir) {
       return;
     }
     const estado = codigo === "ok" ? "aprobado" : "rehacer";
+    // Con voz y VOZ_HORARIO, fuera del horario solo se rehacen al toque los videos urgentes; el resto, en el horario de la voz.
+    const deNoche = estado === "rehacer" && soloUrgentes() && fecha > sumarDias(fechaLocal(), CONFIG.voz.urgenteDias);
     await api("answerCallbackQuery", {
       callback_query_id: cq.id,
-      text: estado === "aprobado" ? "Aprobado ✅" : "Lo rehago con otros textos 🔁",
+      text:
+        estado === "aprobado"
+          ? "Aprobado ✅"
+          : deNoche
+            ? `Lo rehago con la voz, ${horarioVozTexto()} 🔁 Te llega cuando esté.`
+            : "Lo rehago con otros textos 🔁",
     }).catch(() => {});
     await api("editMessageReplyMarkup", {
       chat_id: cq.message.chat.id,
       message_id: cq.message.message_id,
       reply_markup: {
-        inline_keyboard: [[{ text: estado === "aprobado" ? "✅ Aprobado" : "🔁 Rehaciendo…", callback_data: "nada|x" }]],
+        inline_keyboard: [
+          [{ text: estado === "aprobado" ? "✅ Aprobado" : deNoche ? "🔁 Se rehace con la voz" : "🔁 Rehaciendo…", callback_data: "nada|x" }],
+        ],
       },
     }).catch(() => {});
     const respuesta = {
       fecha,
       estado,
       actualizado: ahoraTexto(),
-      nota: estado === "aprobado" ? "Aprobado en Telegram" : "Pedido de rehacer desde Telegram",
+      nota:
+        estado === "aprobado"
+          ? "Aprobado en Telegram"
+          : `Pedido de rehacer desde Telegram${deNoche ? ` (se rehace con la voz, ${horarioVozTexto()})` : ""}`,
     };
     log(`Telegram: ${estado} ${fecha}`);
     if (alDecidir) alDecidir(respuesta);

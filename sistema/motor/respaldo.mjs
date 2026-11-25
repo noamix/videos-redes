@@ -1,6 +1,7 @@
 // Respaldo de la carpeta del sistema antes de un cambio grande: respaldos/respaldo-AAAAMMDD-HHMM.tgz (permisos 600).
 // Incluye el .env y el flujo de n8n (tienen claves): no lo copies a otro lado ni lo subas.
-// No incluye node_modules, salida (videos), trabajos, la caché ni los respaldos anteriores.
+// No incluye node_modules, salida (videos), trabajos, la caché ni los respaldos anteriores. De la voz en off guarda
+// las voces y la configuración, pero no el programa ni el modelo (se vuelven a bajar con npm run voz-instalar).
 //   npm run respaldo
 import { chmodSync, mkdirSync, statSync } from "node:fs";
 import path from "node:path";
@@ -20,6 +21,7 @@ const r = await correr(
   [
     "czf", destino,
     "--exclude=./node_modules", "--exclude=./salida", "--exclude=./trabajos", "--exclude=./respaldos", "--exclude=./datos/cache",
+    "--exclude=./voz/.venv", "--exclude=./voz/modelos", "--exclude=./voz/llama.cpp-omni", "--exclude=__pycache__",
     "-C", RAIZ, ".",
   ],
   { timeoutMs: 10 * 60 * 1000 },

@@ -23,6 +23,7 @@
     {"id":"precio_mes","type":"string","label":"Mes del precio","default":""},
     {"id":"whatsapp","type":"string","label":"WhatsApp (vacío = botón de la web)","default":""},
     {"id":"beneficios","type":"string","label":"Beneficios fijos, separados por |","default":""},
+    {"id":"aviso_ia","type":"string","label":"Aviso de voz hecha con IA (vacío = no se muestra)","default":""},
     {"id":"amarillo","type":"color","label":"Color principal (el de las pantallas claras)","default":"#F7CE00"},
     {"id":"negro","type":"color","label":"Color oscuro (el de la pantalla del medio)","default":"#0B0B0B"}
   ]'
@@ -94,6 +95,24 @@
         height: 460px;
         border-radius: 50%;
         background: radial-gradient(ellipse at center, color-mix(in srgb, var(--amarillo) 42%, transparent) 0%, transparent 70%);
+      }
+
+      /* Aviso de voz hecha con IA: arriba a la derecha, a la altura de la marca, durante todo el video */
+      #aviso-ia {
+        position: absolute;
+        right: 80px;
+        top: 206px;
+        height: 42px;
+        padding: 0 18px;
+        border-radius: 21px;
+        background: rgba(11, 11, 11, 0.72);
+        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.28);
+        color: #ffffff;
+        font: 700 23px/42px var(--fuente);
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        z-index: 60;
+        display: none;
       }
 
       /* ---------- Piezas comunes ---------- */
@@ -449,6 +468,9 @@
         <div id="e3-wa-web"></div>
       </div>
 
+      <!-- Aviso de voz hecha con IA (solo si el video lleva voz) -->
+      <div id="aviso-ia"></div>
+
       <!-- Barridos: la banda tiene el color de la pantalla que se va y destapa la nueva en diagonal -->
       <div id="c1" class="clip capa barrido" data-start="4.5" data-duration="1.05" data-track-index="5">
         <div id="c1-banda" class="banda" style="background: var(--amarillo)"></div>
@@ -540,6 +562,10 @@
         texto("e2-x3", V.p2_punto_3);
         texto("e3-sub", V.p3_sub);
         texto("e3-web", V.web);
+        if (lleno(V.aviso_ia)) {
+          texto("aviso-ia", V.aviso_ia);
+          $("aviso-ia").style.display = "block";
+        }
 
         // Beneficios fijos del cierre (con tilde negro)
         var listaBenef = $("e3-benef");

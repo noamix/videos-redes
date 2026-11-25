@@ -3,7 +3,7 @@
 ## Qué hace solo, todos los días
 
 1. Elige un producto de tu planilla, rotando por líneas de producto.
-2. Arma un video vertical de 15 segundos con las fotos de tu web, los textos y los colores de tu marca.
+2. Arma un video vertical de 15 segundos con las fotos de tu web, los textos y los colores de tu marca. Si sumaste la voz en off, también la dice con tu voz.
 3. Te lo manda a Telegram con dos botones: **Aprobar** y **Rehacer**.
 4. A la hora que elegiste lo publica en Instagram y, por Buffer, en TikTok y YouTube Shorts.
 5. Te manda los links por Telegram, o un aviso si algo falló.
@@ -13,7 +13,8 @@
 - **Aprobar o rehacer el video en Telegram.** Lleva segundos. Rehacer arma otro al toque, con otros textos.
 - Si lo aprobás después de la hora, sale en la próxima vuelta: cada 15 minutos, hasta las 23.
 - Si no lo aprobás, ese día no se publica nada.
-- **Dejar la PC prendida** a la hora de publicar. Si se apagó, al prenderla todo arranca solo; si todavía no son las 23, el video aprobado del día sale en la próxima vuelta. Si ya pasó el día, queda `aprobado`: cambiá la fecha de esa fila a hoy y sale en la próxima vuelta.
+- Los mensajes que llegan de noche (de 23 a 7) vienen sin sonido.
+- **Dejar la PC prendida** a la hora de publicar (y de madrugada, si la voz se arma a esa hora). Si se apagó, al prenderla todo arranca solo; si todavía no son las 23, el video aprobado del día sale en la próxima vuelta. Si ya pasó el día, queda `aprobado`: cambiá la fecha de esa fila a hoy y sale en la próxima vuelta.
 
 ## La planilla
 
@@ -49,6 +50,17 @@ No cambies los nombres de las hojas ni de las columnas: el sistema los usa.
 | La revisión de los lunes encontró un problema | Escribí `/videos-redes:chequeo`. |
 | No te llegó el video del día | Fijate si la PC estuvo prendida. Si lo estuvo, `/videos-redes:chequeo`. |
 
+## La voz en off (opcional)
+
+Si tu compu la banca, el video puede llevar tu voz diciendo lo mismo que cada pantalla. La arma tu compu (VoxCPM2), gratis y sin mandar tu voz a ningún lado.
+
+- **Para sumarla:** pedile a Claude "quiero sumar la voz en off". Primero revisa si tu compu la banca, sin instalar nada. Si la banca, la instala, te pide que grabes con el celular un texto corto (unos 15 segundos) y mide cuánto tarda.
+- **Solo tu voz**, o la de alguien que te dio permiso para usarla. No se clona la voz de otras personas.
+- **"Voz generada con IA":** el video y el texto del posteo lo dicen, y se publica con la marca de IA de cada red. Lo piden Instagram, TikTok y YouTube para las voces hechas con IA. No se saca.
+- **Cuándo se arma:** si tu compu tiene poca memoria, de madrugada (la PC tiene que quedar prendida). De día salen solo los videos de hoy. Si a esa hora falta memoria, en la planilla vas a ver la nota "Espera la voz": se arma en la vuelta siguiente.
+- **Si un video sale sin voz:** la nota de la fila dice por qué. El video sale igual.
+- En Telegram, arriba del video, ves lo que dice la voz. Si no te gusta, tocá **Rehacer**.
+
 ## Cambios que le podés pedir a Claude
 
 Con tus palabras, en Claude Code en la PC del sistema:
@@ -60,6 +72,7 @@ Con tus palabras, en Claude Code en la PC del sistema:
 - "Cambiá los colores del video a…" (si tenés un video de ejemplo, pasáselo).
 - "Sacá el WhatsApp del cierre." / "Cambiá el WhatsApp a…"
 - "Dejá de publicar en TikTok."
+- "Quiero sumar la voz en off." / "Cambiá mi voz, grabé otra." / "Apagá la voz." / "La voz dice mal tal palabra."
 
 Antes de cambiar algo hace un respaldo, después prueba sin publicar y te avisa.
 

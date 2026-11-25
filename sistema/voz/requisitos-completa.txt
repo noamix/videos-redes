@@ -1,0 +1,5 @@
+# Python de la voz completa. PyTorch (torch y torchaudio) lo instala antes instalar.sh: para procesador o para placa NVIDIA.
+voxcpm==2.0.3
+numpy>=1.26
+num2words>=0.5.13
+huggingface_hub>=0.24

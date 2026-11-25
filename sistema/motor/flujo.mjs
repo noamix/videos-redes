@@ -11,7 +11,9 @@ import { renderizar } from "./render.mjs";
 import { armarPrecio } from "./precio.mjs";
 import { enviarRevision, enviarTexto, fechaBonita, telegramConfigurado } from "./telegram.mjs";
 import { CAMPOS, escribirTextos, textosCompletos } from "./textos.mjs";
-import { ahoraTexto, fechaLocal, horaLocal, log, normalizarFecha, slug, sumarDias } from "./util.mjs";
+import { captionConAviso, escribirFrases } from "./frases.mjs";
+import { generarVoz, horarioVozTexto, planearVoz, prepararMemoria, soloUrgentes, vozActiva } from "./voz.mjs";
+import { ahoraTexto, fechaLocal, horaLocal, log, normalizarFecha, slug, sondear, sumarDias } from "./util.mjs";
 
 export const COLUMNAS_CALENDARIO = [
   "fecha", "linea", "producto_id", "producto", "estado",
@@ -66,7 +68,7 @@ function enCola(tarea) {
  * Recibe las filas de las hojas Productos y Calendario.
  * Devuelve las filas nuevas a agendar (días que faltan) y los videos a generar en esta corrida.
  */
-export function planificar({ productos = [], calendario = [] }, hoy = fechaLocal()) {
+export function planificar({ productos = [], calendario = [] }, hoy = fechaLocal(), ahora = new Date()) {
   if (CONFIG.pausado) {
     return { hoy, filas_nuevas: [], a_generar: [], resumen: "En pausa (config/negocio.json): no se agenda ni se genera nada" };
   }
@@ -117,10 +119,15 @@ export function planificar({ productos = [], calendario = [] }, hoy = fechaLocal
     nuevas.push(fila);
   }
 
-  const fin = sumarDias(hoy, CONFIG.diasAdelante);
-  const candidatas = [...porFecha.values()].filter(
-    (r) => r.fecha >= hoy && r.fecha <= fin && ["", "pendiente", "rehacer"].includes(estadoDe(r)) && !enCurso.has(r.fecha),
-  );
+  // Con voz y VOZ_HORARIO: la voz se arma en ese horario. Fuera de él solo se generan los urgentes (los de hoy).
+  const deDia = soloUrgentes(ahora);
+  const fin = deDia ? sumarDias(hoy, Math.min(CONFIG.diasAdelante, CONFIG.voz.urgenteDias)) : sumarDias(hoy, CONFIG.diasAdelante);
+  const esperanLaNoche = [];
+  const candidatas = [...porFecha.values()].filter((r) => {
+    const toca = r.fecha >= hoy && ["", "pendiente", "rehacer"].includes(estadoDe(r)) && !enCurso.has(r.fecha);
+    if (toca && r.fecha > fin && r.fecha <= sumarDias(hoy, CONFIG.diasAdelante)) esperanLaNoche.push(r.fecha);
+    return toca && r.fecha <= fin;
+  });
   candidatas.sort(
     (a, b) => Number(estadoDe(b) === "rehacer") - Number(estadoDe(a) === "rehacer") || a.fecha.localeCompare(b.fecha),
   );
@@ -149,12 +156,40 @@ export function planificar({ productos = [], calendario = [] }, hoy = fechaLocal
     };
   });
 
+  const deNoche = esperanLaNoche.length ? ` · ${esperanLaNoche.length} esperan el horario de la voz (${horarioVozTexto()})` : "";
   return {
     hoy,
     filas_nuevas: nuevas.filter((f) => !fechasElegidas.has(f.fecha)),
     a_generar: aGenerar,
-    resumen: `${nuevas.length} día(s) agendado(s), ${aGenerar.length} video(s) a generar`,
+    resumen: `${nuevas.length} día(s) agendado(s), ${aGenerar.length} video(s) a generar${deNoche}`,
   };
+}
+
+// ---------- Voz en off ----------
+let avisoChromeEnviado = "";
+
+/**
+ * Arma la voz del video: frases (Gemini o los textos de las pantallas) y audio (comando del estudio).
+ * Devuelve { voz: { tramos, frases, origen, segundos } | null, avisos, carpeta }.
+ */
+async function armarVoz({ textos, precio, linea, producto, mostrarPrecio, fecha }) {
+  const avisos = [];
+  const fr = await escribirFrases({ textos, precio, linea, producto, mostrarPrecio });
+  avisos.push(...fr.avisos);
+  if (!fr.frases) return { voz: null, avisos, carpeta: null };
+  const carpeta = path.join(RUTAS.trabajos, `voz-${fecha}-${Date.now()}`);
+  const g = await generarVoz({ frases: fr.frases, carpeta });
+  if (!g.ok) {
+    avisos.push(`Sin voz: ${g.motivo}.`);
+    return { voz: null, avisos, carpeta, frases: fr.frases };
+  }
+  const plan = planearVoz(g.archivos);
+  if (!plan.ok) {
+    avisos.push(`Sin voz: ${plan.motivo}.`);
+    return { voz: null, avisos, carpeta, frases: fr.frases };
+  }
+  if (g.sinTope) avisos.push("La voz corrió sin tope de memoria (systemd-run no anduvo).");
+  return { voz: { tramos: plan.tramos, frases: fr.frases, origen: fr.origen, segundos: g.segundos }, avisos, carpeta };
 }
 
 // ---------- 2. Generar ----------
@@ -162,6 +197,34 @@ async function generarAhora(p, base) {
   const lineaClave = String(p.linea || "").trim();
   const linea = datosDeLinea(lineaClave);
   const avisos = [];
+
+  // Voz en off: primero se mira la memoria (en el horario de la voz, si hace falta y está permitido, se cierra el navegador).
+  // Si no alcanza y el video no es urgente, queda para la vuelta siguiente sin gastar nada.
+  let conVoz = vozActiva() && !p.sin_voz;
+  if (conVoz) {
+    const urgente = base.fecha <= sumarDias(fechaLocal(), CONFIG.voz.urgenteDias);
+    const mem = await prepararMemoria();
+    if (mem.chromeCerrado && avisoChromeEnviado !== fechaLocal()) {
+      avisoChromeEnviado = fechaLocal();
+      await enviarTexto(
+        `🌙 Cerré el navegador a las ${horaLocal()} para armar la voz de los videos (la compu estaba sin usar hace ${Math.round(mem.inactivo)} min). Cuando lo abras, te recupera las pestañas.`,
+      ).catch(() => {});
+    }
+    if (!mem.ok) {
+      if (!urgente && !p.prueba) {
+        log(`Video del ${base.fecha}: espera la voz (${mem.motivo})`);
+        return {
+          ...base,
+          estado: p.regenerar_textos ? "rehacer" : "pendiente",
+          nota: `Espera la voz: ${mem.motivo}. Lo reintento en la próxima vuelta (la voz se arma ${horarioVozTexto()}).`.slice(0, 480),
+          actualizado: ahoraTexto(),
+        };
+      }
+      avisos.push(`Sin voz: ${mem.motivo}.${urgente && !p.prueba ? " Como el video es para hoy, sale igual." : ""}`);
+      conVoz = false;
+    }
+  }
+
   let pagina = null;
   if (p.link) {
     try {
@@ -205,8 +268,31 @@ async function generarAhora(p, base) {
     precio = armarPrecio(pagina?.precio || p.precio || "", p.producto);
     if (!precio) avisos.push("mostrar_precio está en SI pero no encontré un precio claro: el video sale sin precio.");
   }
-  const video = await renderizar({ nombreBase, textos, linea, fotos, precio });
-  await fs.rm(carpetaFotos, { recursive: true, force: true });
+  // La voz se arma antes del render: si sale, el video lleva el aviso "Voz generada con IA" en pantalla.
+  let voz = null;
+  let carpetaVoz = null;
+  if (conVoz) {
+    try {
+      const r = await armarVoz({ textos, precio, linea, producto: p.producto, mostrarPrecio: Boolean(p.mostrar_precio), fecha: base.fecha });
+      voz = r.voz;
+      carpetaVoz = r.carpeta;
+      avisos.push(...r.avisos);
+    } catch (e) {
+      avisos.push(`Sin voz: ${e.message}.`);
+    }
+  }
+
+  let video;
+  try {
+    video = await renderizar({ nombreBase, textos, linea, fotos, precio, voz });
+  } finally {
+    await fs.rm(carpetaFotos, { recursive: true, force: true });
+    if (carpetaVoz) await fs.rm(carpetaVoz, { recursive: true, force: true }).catch(() => {});
+  }
+  if (voz && !video.conVoz) avisos.push("No pude mezclar la voz: el video salió con la música sola.");
+  const conVozFinal = Boolean(voz && video.conVoz);
+  // El texto del posteo dice "Voz generada con IA" solo si el video lleva voz.
+  textos.caption = captionConAviso(textos.caption, conVozFinal);
   await fs.writeFile(path.join(RUTAS.salida, `${nombreBase}.txt`), `${textos.caption}\n`);
 
   if (telegramConfigurado() && !p.sin_telegram) {
@@ -219,6 +305,7 @@ async function generarAhora(p, base) {
         avisos: avisos.slice(0, 3),
         rehecho: Boolean(p.regenerar_textos),
         prueba: Boolean(p.prueba),
+        frasesVoz: conVozFinal ? voz.frases : null,
       });
     } catch (e) {
       avisos.push(`El video está hecho pero no pude mandarlo a Telegram (${e.message}); aprobalo en la planilla.`);
@@ -234,7 +321,11 @@ async function generarAhora(p, base) {
     ...textos,
     archivo: video.archivo,
     ig_link: "",
-    nota: (avisos.join(" | ") || `OK (textos: ${origen}, render ${video.segundos} s${video.musica ? `, música ${video.musica}` : ""})`).slice(0, 480),
+    nota: (
+      avisos.length
+        ? `${avisos.join(" | ")}${conVozFinal ? ` | Voz OK (${voz.origen}, ${voz.segundos} s)` : ""}`
+        : `OK (textos: ${origen}${conVozFinal ? `, voz: ${voz.origen} en ${voz.segundos} s` : ""}, render ${video.segundos} s${video.musica ? `, música ${video.musica}` : ""})`
+    ).slice(0, 480),
     actualizado: ahoraTexto(),
   };
 }
@@ -249,7 +340,7 @@ export async function generar(p) {
   try {
     log(`Generando video del ${fecha}: ${p.producto}`);
     const fila = await enCola(() => generarAhora(p, base));
-    log(`Video del ${fecha} listo: ${fila.archivo}`);
+    if (fila.archivo) log(`Video del ${fecha} listo: ${fila.archivo}`);
     return fila;
   } catch (e) {
     log(`Error generando el video del ${fecha}: ${e.message}`);
@@ -286,7 +377,11 @@ export async function publicarPendientes({ calendario = [] }) {
   }
   publicando = true;
   try {
-    const res = await publicarReel({ ruta, caption: String(r.caption || "") });
+    // Si el video lleva voz hecha con IA, se publica con la marca oficial de cada red ("Información de IA").
+    const conIa = await sondear(ruta)
+      .then((i) => i.comentario.includes(CONFIG.voz.aviso))
+      .catch(() => false);
+    const res = await publicarReel({ ruta, caption: String(r.caption || ""), conIa });
     if (res.ok) {
       // TikTok y YouTube Shorts por Buffer, con el mismo video que acaba de salir en Instagram.
       let envio;
@@ -298,6 +393,7 @@ export async function publicarPendientes({ calendario = [] }) {
           gancho: r.p1,
           urlInstagram: res.mediaUrl,
           ruta,
+          conIa,
         });
       } catch (e) {
         log(`Buffer: ${e.message}`);
@@ -315,10 +411,11 @@ export async function publicarPendientes({ calendario = [] }) {
             ? `${x.red === "youtube" ? "▶️" : "🎵"} ${x.nombre}: enviado a Buffer, sale en unos minutos (te aviso cuando esté).`
             : `⚠️ ${x.nombre} no salió: ${x.motivo}\nEl video está en la carpeta salida para subirlo a mano.`,
         );
-        notas.push(x.ok ? `${x.nombre} enviado por Buffer` : `${x.nombre}: ${x.motivo}`);
+        notas.push(x.ok ? `${x.nombre} enviado por Buffer${x.sinMarcaIa ? " (sin la marca de IA)" : ""}` : `${x.nombre}: ${x.motivo}`);
       }
       const lineaTiktok = lineas.length ? `\n${lineas.join("\n")}` : "";
       await enviarTexto(`✅ Publicado en Instagram: ${r.producto}\n${res.permalink || ""}${lineaTiktok}`).catch(() => {});
+      if (res.sinMarcaIa) notas.push("Instagram no aceptó la marca de IA: lleva el aviso en el video y en el texto");
       const notaTiktok = notas.length ? ` · ${notas.join(" · ")}` : "";
       return {
         filas: [

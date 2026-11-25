@@ -21,7 +21,8 @@
     {"id":"color_tinta","type":"color","label":"Color del texto","default":"#FFFFFF"},
     {"id":"color_acento","type":"color","label":"Color de acento","default":"#B7E36A"},
     {"id":"color_acento_tinta","type":"color","label":"Texto sobre el acento","default":"#12352B"},
-    {"id":"color_brillo","type":"color","label":"Brillo del fondo (abajo a la derecha)","default":"#B7E36A"}
+    {"id":"color_brillo","type":"color","label":"Brillo del fondo (abajo a la derecha)","default":"#B7E36A"},
+    {"id":"aviso_ia","type":"string","label":"Aviso de voz hecha con IA (vacío = no se muestra)","default":""}
   ]'
 >
   <head>
@@ -134,6 +135,23 @@
         border-radius: 4px;
         background: var(--color_tinta);
         transform-origin: 0 50%;
+      }
+
+      /* Aviso de voz hecha con IA: arriba a la derecha, entre las barras y la foto, durante todo el video */
+      #aviso-ia {
+        position: absolute;
+        right: 80px;
+        top: 209px;
+        height: 34px;
+        padding: 0 14px;
+        border-radius: 17px;
+        background: rgba(0, 0, 0, 0.55);
+        color: #ffffff;
+        font: 700 20px/34px var(--fuente-texto);
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        z-index: 60;
+        display: none;
       }
 
       /* ---------- Piezas comunes ---------- */
@@ -395,6 +413,9 @@
         </div>
       </div>
 
+      <!-- Aviso de voz hecha con IA (solo si el video lleva voz) -->
+      <div id="aviso-ia"></div>
+
       <!-- Cortinas -->
       <div id="c1" class="clip capa cortina" data-start="4.7" data-duration="0.6" data-track-index="5">
         <div id="c1-franja" class="panel-franja"></div>
@@ -456,6 +477,10 @@
         texto("e3-cta-txt", V.p3_titulo);
         texto("e3-sub", V.p3_sub);
         texto("e3-web", V.web);
+        if (V.aviso_ia != null && String(V.aviso_ia).trim() !== "") {
+          texto("aviso-ia", V.aviso_ia);
+          $("aviso-ia").style.display = "block";
+        }
         texto("e3-marca-txt", V.marca);
         texto("fondo-marca", V.marca);
         var usarLogo = V.usar_logo === true || V.usar_logo === "true";

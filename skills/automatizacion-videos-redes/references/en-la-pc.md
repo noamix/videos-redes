@@ -10,7 +10,7 @@ Convenciones del motor que trae el plugin videos-redes (`sistema/` en la raíz d
 | `config/negocio.json` | Datos del negocio (formato abajo). Sin secretos. El motor lo relee solo cuando cambia: no hace falta reiniciarlo. Modelo: `config/negocio.example.json`. |
 | `config/lineas.json` | Una entrada por línea de productos (el nombre es el de la columna `linea` de la planilla): `etiqueta`, `hashtags`, `reglas`, `beneficios` (estilo cajas: hasta 3 que se cumplen siempre), `palabras_prohibidas` y, opcionales, colores del estilo clásico (`color_fondo`, `color_tinta`, `color_acento`, `color_acento_tinta`). `default` vale para los productos sin línea. |
 | `config/textos-plantillas.json` | Frases de los textos sin IA (respaldo de Gemini): `comunes`, `lineas` (formato en `_ejemplo_linea`), `productos` y `rasgos`. Después de tocarlo, `npm run chequeo`. |
-| `prompts/textos.md` | Instrucciones para Gemini, con los datos y reglas de `negocio.json`. |
+| `prompts/textos.md`, `prompts/voz.md` | Instrucciones para Gemini (textos y frases de la voz), con los datos y reglas de `negocio.json`. |
 | `.env` (600) | Claves y ajustes técnicos. Lo escriben solo `cargar-clave` e `ig-conectar`. Modelo: `.env.example`. |
 | `plantilla-cajas/`, `plantilla/` | Los dos estilos del video (HyperFrames + GSAP): "cajas" (colores de la marca, precio, WhatsApp, beneficios) y "clásico" (colores por línea). |
 | `motor/`, `pruebas/` | El motor (Node 22) y sus pruebas contra servidores falsos. |
@@ -20,6 +20,7 @@ Convenciones del motor que trae el plugin videos-redes (`sistema/` en la raíz d
 | `datos/`, `salida/`, `trabajos/` | Estado interno (respuestas de Telegram, envíos de Buffer), los videos (se borran a los 60 días) y los renders en curso. |
 | `respaldos/` | Los de `npm run respaldo` (600). Tienen el `.env`: no se traen, no se leen y no se suben. |
 | `COMO-USARLO.md` | El manual del dueño con sus datos (paso 8 del armado). |
+| `voz/` | Voz en off (opcional). Los programas (`evaluar.py`, `instalar.sh`, `voz_videos.py`…) vienen con el plugin; `voz-instalar` agrega `.venv/`, `modelos/`, `llama.cpp-omni/` (liviana) y `config.json`; `voz-preparar`, `voces/<nombre>/` (la grabación del dueño: no sale de la compu); `voz-medir`, `medicion.json`. `pronunciacion.txt` (modelo: `pronunciacion.ejemplo.txt`) corrige cómo se dicen palabras puntuales. |
 
 ### `config/negocio.json`
 
@@ -68,14 +69,23 @@ Convenciones del motor que trae el plugin videos-redes (`sistema/` en la raíz d
 | `npm run respaldo` | `respaldos/respaldo-<fecha>.tgz` (600), sin `node_modules`, `salida` ni respaldos | Claude, antes de cada cambio grande |
 | `npm run pruebas` | Pruebas del motor contra servidores falsos (`-- --render`: también arma videos) | Claude, después de tocar el código |
 | `npm run vista-previa` | La plantilla del video en el navegador | Claude o el dueño |
+| `npm run voz-evaluar` | ¿La compu banca la voz? Recomienda liviana o completa, sin instalar nada | Claude |
+| `npm run voz-instalar` | Instala la voz (`-- --motor liviana` o `completa`). Si falta algo del sistema, muestra el `sudo apt install …` | Claude (el sudo, el dueño) |
+| `npm run voz-preparar -- archivo --es-mi-voz` | Arma la voz con la grabación (`--tengo-permiso` si es de otra persona que autorizó; `--reemplazar`) | Claude, con el OK del dueño |
+| `npm run voz-medir` | Mide tiempo y memoria con 3 frases y ajusta el `.env` (`-- --sin-guardar`: solo informa) | Claude |
+| `npm run voz-probar -- "frase"` · `npm run voz-estado` | Una frase en `salida/` para escucharla · estado de la voz | Claude o el dueño |
+| `npm run chrome-probar` | Qué navegador cerraría el motor para hacerle lugar a la voz. `-- --cerrar` lo cierra de verdad | Claude; `--cerrar`, solo con el OK del dueño |
+| `npm run voz-desinstalar` | Muestra qué borraría; `-- --si` saca la voz (las grabaciones quedan; `--todo` también las borra) | Claude, con el OK del dueño |
+| `npm run pruebas-voz` | Pruebas de la voz sin modelo | Claude, después de tocar `voz/` |
 
 Pegar en la terminal: Ctrl+Shift+V en Linux. Mientras se pega una clave no se ve nada: es normal.
 
 ## Claves y ajustes del `.env`
 
 - **Secretas** (las carga el dueño): `MOTOR_CLAVE` (con `--generar`), `TELEGRAM_BOT_TOKEN`, `GEMINI_API_KEY`, `IG_TOKEN` (la carga `ig-conectar`), `BUFFER_API_KEY`, `N8N_API_KEY` (temporal), `WP_CLAVE_APLICACION` (opcional).
-- **No secretas** (con `--valor`): `TELEGRAM_CHAT_ID`, `PLANILLA_ID`, `N8N_GOOGLE_CRED_ID`, `MOTOR_HOST`, `MOTOR_URL_PARA_N8N`, `MOTOR_PUERTO`, `GEMINI_MODELO`, `TEXTOS_MODO`, `BUFFER_YOUTUBE`, `BUFFER_TIKTOK`, `BUFFER_REDES`, `BUFFER_YOUTUBE_CATEGORIA`, `IG_CUENTA`, `HYPERFRAMES_BROWSER_PATH`, `WP_URL`, `WP_USUARIO`.
-- Después de cambiar el `.env`: `systemctl --user restart videos-redes`. Si cambian el puerto, la clave del motor, `PLANILLA_ID` o la credencial: `npm run n8n` y volver a subir el flujo.
+- **No secretas** (con `--valor`): `TELEGRAM_CHAT_ID`, `TELEGRAM_SILENCIO` (horas sin sonido, por defecto `23-7`), `PLANILLA_ID`, `N8N_GOOGLE_CRED_ID`, `MOTOR_HOST`, `MOTOR_URL_PARA_N8N`, `MOTOR_PUERTO`, `GEMINI_MODELO`, `TEXTOS_MODO`, `BUFFER_YOUTUBE`, `BUFFER_TIKTOK`, `BUFFER_REDES`, `BUFFER_YOUTUBE_CATEGORIA`, `IG_CUENTA`, `HYPERFRAMES_BROWSER_PATH`, `WP_URL`, `WP_USUARIO`.
+- **Voz en off** (no secretas; las carga `voz-instalar` y las ajusta `voz-medir`): `VOZ_MODO` (`auto` o `no`), `VOZ_COMANDO`, `VOZ_NOMBRE`, `VOZ_MEMORIA_MIN_MB`, `VOZ_TOPE_MEMORIA`, `VOZ_TOPE_SWAP`, `VOZ_HORARIO` (vacío = a cualquier hora), `VOZ_CERRAR_CHROME`, `VOZ_INACTIVO_MIN`, `VOZ_TIMEOUT_MIN`, `VOZ_URGENTE_DIAS`, `VOZ_AVISO` y `VOZ_TEMPO_MAX`. Para borrar un valor (por ejemplo, `VOZ_HORARIO` para que sea a cualquier hora): `--borrar`.
+- Después de cambiar el `.env`: `systemctl --user restart videos-redes`. Si cambian el puerto, la clave del motor, `PLANILLA_ID`, la credencial o `VOZ_HORARIO`: `npm run n8n` y volver a subir el flujo.
 
 ## Servicio y n8n
 
@@ -92,6 +102,7 @@ El plugin trae bloqueos (hooks) que frenan estas cosas aunque Claude se equivoqu
 - escribir una clave en un comando (`IG_TOKEN_USUARIO='EAA…'`, `--valor` con una clave): la carga el dueño con `cargar-clave`;
 - buscar con `grep -r` en toda la carpeta sin excluir el `.env`: buscar en `motor/`, `config/`, `plantilla*/` o `n8n/docker-compose.yml`, o agregar `--exclude='.env*'`;
 - borrar volúmenes de Docker (`down -v`, `volume rm`, `prune` con volúmenes);
-- publicar desde la terminal (`/publicar-pendientes`, `media_publish`, `shareNow`).
+- publicar desde la terminal (`/publicar-pendientes`, `media_publish`, `shareNow`);
+- traer al espacio de Claude la grabación de la voz del dueño (`voz/voces/`).
 
 Son una red de seguridad: las reglas de la skill siguen valiendo. Si un bloqueo frena algo legítimo, hacerlo de otra forma o pedírselo al dueño; no buscarle la vuelta.

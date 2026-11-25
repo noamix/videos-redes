@@ -1,0 +1,13 @@
+# Texto para grabar tu voz (npm run voz-preparar lo usa como transcripción de la grabación).
+#
+# Cómo grabarlo:
+# - Con el celular está bien. En un lugar callado, sin música ni eco, a un palmo del micrófono.
+# - Leelo tal cual, con tu tono de siempre, como si se lo contaras a un cliente. Si te equivocás, grabalo de nuevo:
+#   la voz copia lo que escucha, también las trabas.
+# - Dura unos 15 segundos. Mandá el archivo a la compu (m4a, mp3, ogg, wav: sirve cualquiera).
+# - Solo tu voz, o la de alguien que te dio permiso para usarla. Las redes piden avisar que la voz es de IA:
+#   el sistema lo pone solo en el video y en el texto del posteo.
+#
+# Las líneas que empiezan con # no se leen. Si grabaste otro texto, pasalo con --texto "lo que dijiste".
+
+Hola, ¿cómo estás? Te cuento que tenemos productos pensados para tu negocio. Elegís el modelo, la medida y el color, y te lo preparamos en pocos días. Hacemos envíos a todo el país. Si querés saber más, escribinos y te pasamos todos los detalles.

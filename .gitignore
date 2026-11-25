@@ -16,3 +16,12 @@ sistema/fotos/
 sistema/musica/
 sistema/AVANCE.md
 sistema/COMO-USARLO.md
+# Voz en off: el programa, el modelo y las voces se instalan en cada PC (las voces son de cada uno)
+sistema/voz/.venv/
+sistema/voz/modelos/
+sistema/voz/llama.cpp-omni/
+sistema/voz/voces/
+sistema/voz/config.json
+sistema/voz/medicion.json
+sistema/voz/pronunciacion.txt
+sistema/voz/.turno.lock

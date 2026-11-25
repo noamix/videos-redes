@@ -9,4 +9,5 @@ echo
 echo "Queda en tus manos:"
 echo "  • n8n: cd n8n && docker compose stop   (NO uses down -v: borra el flujo, las credenciales y el historial)"
 echo "  • La carpeta del sistema: borrala cuando quieras. Tiene el .env con las claves y los respaldos."
+echo "  • Si instalaste la voz en off: su programa y su modelo (varios GB) están en voz/; tu grabación, en voz/voces."
 echo "  • Revocá las claves que ya no uses: el bot (@BotFather → /revoke), Gemini (AI Studio), Buffer y la app de Meta."

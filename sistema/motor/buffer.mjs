@@ -117,7 +117,8 @@ export function tituloYoutube({ producto, gancho }) {
   return t.slice(0, 100).replace(/\s+\S*$/, "").trim();
 }
 
-async function crearPost({ red, canal, texto, url, titulo, borrador = false }) {
+// conIa: el video lleva voz hecha con IA → Buffer le pasa la marca oficial a TikTok y a YouTube (isAiGenerated).
+async function crearPost({ red, canal, texto, url, titulo, borrador = false, conIa = false }) {
   const input = {
     text: texto,
     channelId: canal.id,
@@ -127,8 +128,9 @@ async function crearPost({ red, canal, texto, url, titulo, borrador = false }) {
     assets: [{ video: { url } }],
   };
   if (red === "youtube") {
-    input.metadata = { youtube: { title: titulo, categoryId: CONFIG.buffer.categoriaYoutube, madeForKids: false } };
+    input.metadata = { youtube: { title: titulo, categoryId: CONFIG.buffer.categoriaYoutube, madeForKids: false, ...(conIa ? { isAiGenerated: true } : {}) } };
   }
+  if (red === "tiktok" && conIa) input.metadata = { tiktok: { isAiGenerated: true } };
   if (borrador) input.saveToDraft = true;
   const d = await buffer(
     `mutation CrearPost($input: CreatePostInput!) {
@@ -159,7 +161,22 @@ const errorDeConfiguracion = (m) => /clave de API|ninguna cuenta|No encuentro la
  * Manda el video a las redes de Buffer. urlInstagram: link público del video que acaba de salir en Instagram.
  * Devuelve { ok, omitido, motivo, redes: [{ red, nombre, ok, id, motivo }] }.
  */
-export async function mandarARedes({ producto, fecha, caption, gancho, urlInstagram, ruta }) {
+// Si Buffer rechaza la marca de IA (por ejemplo, si cambia su API), el posteo sale igual sin la marca:
+// el aviso ya va en el video y en el texto.
+const rechazoLaMarcaIa = (e) => /isAiGenerated|ai[-\s]?generated/i.test(String(e?.message || ""));
+
+async function crearPostConMarca(datos) {
+  if (!datos.conIa) return { id: await crearPost(datos), sinMarcaIa: false };
+  try {
+    return { id: await crearPost(datos), sinMarcaIa: false };
+  } catch (e) {
+    if (!rechazoLaMarcaIa(e)) throw e;
+    log(`${REDES[datos.red].nombre}: Buffer no aceptó la marca de IA (${e.message}); lo mando sin la marca.`);
+    return { id: await crearPost({ ...datos, conIa: false }), sinMarcaIa: true };
+  }
+}
+
+export async function mandarARedes({ producto, fecha, caption, gancho, urlInstagram, ruta, conIa = false }) {
   if (!bufferConfigurado()) return { ok: false, omitido: true, motivo: "Buffer no está configurado (falta BUFFER_API_KEY)", redes: [] };
   const canales = await canalesBuffer();
   const titulo = tituloYoutube({ producto, gancho });
@@ -171,9 +188,10 @@ export async function mandarARedes({ producto, fecha, caption, gancho, urlInstag
     if (!canal) continue;
     const texto = textoPara(red, caption);
     let id;
+    let sinMarcaIa = false;
     try {
       if (!url) throw new Error("no tengo el link del video de Instagram");
-      id = await crearPost({ red, canal, texto, url, titulo });
+      ({ id, sinMarcaIa } = await crearPostConMarca({ red, canal, texto, url, titulo, conIa }));
     } catch (e) {
       // Respaldo: si Buffer no pudo bajar el video de Instagram y hay WordPress, se usa ese link.
       if (medioWp || !wordpressConfigurado() || !ruta || errorDeConfiguracion(e.message)) {
@@ -184,13 +202,13 @@ export async function mandarARedes({ producto, fecha, caption, gancho, urlInstag
       try {
         medioWp = await subirAWordpress(ruta);
         url = medioWp.url;
-        id = await crearPost({ red, canal, texto, url, titulo });
+        ({ id, sinMarcaIa } = await crearPostConMarca({ red, canal, texto, url, titulo, conIa }));
       } catch (e2) {
         redes.push({ red, nombre: REDES[red].nombre, ok: false, motivo: e2.message });
         continue;
       }
     }
-    redes.push({ red, nombre: REDES[red].nombre, ok: true, id });
+    redes.push({ red, nombre: REDES[red].nombre, ok: true, id, sinMarcaIa });
     log(`${REDES[red].nombre}: enviado a Buffer (${canal.nombre}), post ${id}`);
   }
   const enviados = redes.filter((x) => x.ok);
@@ -248,7 +266,7 @@ export async function revisarRedes() {
 }
 
 /** Prueba sin publicar: arma un borrador en cada red con ese video (Buffer lo baja y lo revisa) y lo borra. */
-export async function probarEnvio({ url }) {
+export async function probarEnvio({ url, conIa = false }) {
   const canales = await canalesBuffer();
   const resultados = [];
   for (const red of Object.keys(REDES)) {
@@ -262,6 +280,7 @@ export async function probarEnvio({ url }) {
         url,
         titulo: "Prueba del sistema de videos (no se publica)",
         borrador: true,
+        conIa,
       });
       let borrado = true;
       try {

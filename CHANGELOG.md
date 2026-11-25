@@ -1,5 +1,19 @@
 # Cambios
 
+## 0.3.0 (2026-11-25)
+
+Voz en off con la voz del dueño, armada en su compu con VoxCPM2 (opcional), y lo que se aprendió al sumarla al sistema original (v1.6.1):
+
+- **¿La banca?** `npm run voz-evaluar` revisa memoria, procesador (y AVX2), placa NVIDIA, disco y herramientas **antes de instalar nada**, y recomienda un motor o dice que no alcanza. Después de instalar, `npm run voz-medir` hace la prueba de verdad (3 frases como las de un video, con tope de memoria) y deja en el `.env` la memoria, el tope, el tiempo y el horario para esa compu.
+- **Dos motores con el mismo modelo** (`sistema/voz/`): **liviana**, VoxCPM2 en GGUF con `voxcpm2-cli` de llama.cpp-omni (versión fija, se compila en la compu, sin PyTorch), para compus desde 8 GB; y **completa**, VoxCPM2 con PyTorch, para placa NVIDIA o mucha memoria. `voz-instalar` no usa sudo: si falta algo, muestra el `apt install`. La descarga se reanuda si se corta, se revisa con el sha256 de Hugging Face y se controla el formato del GGUF.
+- **Tu voz:** `npm run voz-preparar` arma la voz con una grabación de 15 s leyendo un texto fijo (sin transcribir nada). Pide confirmar que es tu voz o que tenés permiso. La grabación no sale de la compu (bloqueo nuevo).
+- **En el video:** una frase por pantalla con los mismos datos (control de números, largo, voseo, palabras prohibidas y WhatsApp), escrita por la IA de los textos o, si falla, con los textos de las pantallas; números, precios y medidas en palabras y `voz/pronunciacion.txt`. Cada frase entra con su pantalla, la música baja mientras habla la voz y todo queda en -16 LUFS.
+- **Memoria y horario:** la voz corre con tope (`systemd-run`); si falta memoria, el video espera la vuelta siguiente (o sale sin voz si es para hoy). Con `VOZ_HORARIO`, la voz se arma en esas horas (también puede cruzar la medianoche) y n8n corre en ese horario; de día solo salen los urgentes y Rehacer queda para el horario de la voz. Opcional, `VOZ_CERRAR_CHROME`: en el horario de la voz y con la compu sin usar, cierra el navegador (Chrome, Chromium, Brave o Edge) en forma ordenada, solo el proceso principal; `npm run chrome-probar` muestra qué cerraría.
+- **Aviso de IA:** "Voz generada con IA" en el video y en el posteo, y la marca oficial de Instagram (`is_ai_generated`) y de TikTok y YouTube por Buffer (`isAiGenerated`); si una red la rechaza, publica sin ella y lo anota. `ig-probar -- --ia` y `redes-probar -- --ia` la prueban sin publicar.
+- **Telegram:** de 23 a 7 los mensajes llegan sin sonido (`TELEGRAM_SILENCIO`), el mensaje del video muestra lo que dice la voz y, en redes sin IPv6, ya no falla la conexión (espera de 1 s por intento).
+- **Otros:** el chequeo revisa la voz y avisa si la carpeta `musica/` está vacía; `prueba -- --sin-voz`; n8n le espera 30 min a cada video; el respaldo guarda las voces pero no el modelo.
+- 90 pruebas del motor (30 nuevas, con la voz simulada, un `/proc` falso de navegador y el rechazo de la marca de IA) y 26 de la voz (`npm run pruebas-voz`: evaluador, descarga con cortes, formato GGUF, texto, contrato del comando y la liviana con un `voxcpm2-cli` falso). La liviana todavía no se probó con el modelo real.
+
 ## 0.2.0 (2026-11-23)
 
 El plugin trae el motor ya programado (`sistema/`), sacado del sistema que anda desde noviembre de 2026 en una pyme argentina y generalizado para cualquier negocio:

@@ -11,7 +11,7 @@ En el plugin videos-redes, el motor ya programado está en `sistema/` (raíz del
 
 ## Qué hace
 1. **Elige el producto:** cada día toma uno del catálogo (una planilla) y rota por líneas de producto.
-2. **Arma el video:** vertical de 15 s (1080×1920, 30 fps), en 3 pantallas de 5 s, con fotos del producto, textos y el estilo de la marca.
+2. **Arma el video:** vertical de 15 s (1080×1920, 30 fps), en 3 pantallas de 5 s, con fotos del producto, textos y el estilo de la marca. Opcional: voz en off con la voz del dueño (sección "Voz en off").
 3. **Pide aprobación:** lo manda a Telegram con botones **Aprobar / Rehacer**. Rehacer lo regenera al toque con otros textos.
 4. **Publica:** a la hora elegida sube el video aprobado del día a Instagram y, por Buffer, a TikTok y YouTube Shorts.
 5. **Avisa:** manda los links por Telegram, o un aviso si algo falló.
@@ -30,7 +30,7 @@ En el plugin videos-redes, el motor ya programado está en `sistema/` (raíz del
 
 ## Arquitectura
 - **n8n (en Docker) es el reloj:**
-  - cada hora de 8 a 21: planificar y generar (máximo 2 videos por vuelta);
+  - cada hora de 8 a 21: planificar y generar (máximo 2 videos por vuelta); con voz en off y `VOZ_HORARIO`, también en esas horas;
   - cada 15 min de 8 a 23: publicar;
   - los lunes: revisar conexiones.
 - **Motor:** Node 22 como servicio de usuario (systemd). Endpoints `/planificar`, `/generar`, `/publicar-pendientes`, `/renovar-token-ig` (revisión de los lunes) y `/estado`.
@@ -110,6 +110,19 @@ En el plugin videos-redes, el motor ya programado está en `sistema/` (raíz del
   - **En el motor:** YouTube se usa solo si el `.env` dice qué canal. Si hay varias cuentas de una misma red, no adivines: avisá y no la uses.
   - **Sacar un canal:** Settings → Channels → ⋮ → Disconnect Channel, y escribir "disconnect".
 
+## Voz en off (opcional): VoxCPM2 en la PC del dueño
+- **Qué es:** una frase por pantalla, con los mismos datos que se leen, dicha con la voz del dueño. La arma **VoxCPM2** (OpenBMB, Apache-2.0, 30 idiomas con castellano, salida a 48 kHz) en la PC: gratis y sin mandar nada afuera. VoxCPM 0.5B y 1.5 hablan solo chino e inglés: no sirven.
+- **Dos motores con el mismo modelo** (`sistema/voz/`):
+  - **liviana:** VoxCPM2 en GGUF (BaseLM Q8_0 de 1,73 GB + Acoustic F16 de 1,83 GB, de Hugging Face) con `voxcpm2-cli` de llama.cpp-omni (tc-mb, MIT), compilado en la PC (`cmake` y `build-essential`, con sudo del dueño). Sin PyTorch. Para compus de 8 GB o más. Su memoria y su velocidad en procesador se miden con `npm run voz-medir`.
+  - **completa:** el paquete `voxcpm` con PyTorch. Medido en una PC de 16 GB sin placa de video: unos 11 GB de memoria, 28 s para cargar el modelo y unos 20 s por cada segundo de voz (3 frases, unos 3 min). Con placa NVIDIA de 8 GB o más es rápida.
+- **Antes de instalar:** `npm run voz-evaluar` (memoria, procesador y AVX2, placa NVIDIA, disco y herramientas). Recomienda un motor o dice que no alcanza, sin tocar nada. Después, `voz-instalar`, `voz-preparar` y `voz-medir`, que dice si la banca de verdad (hasta 12 min por video) y ajusta memoria, tope, tiempo y horario.
+- **La voz del dueño:** una grabación de unos 15 s leyendo un texto fijo (así no hace falta transcribirla). Solo su voz o la de alguien que le dio permiso: clonar a otra persona sin permiso no está permitido (en Argentina, art. 53 del Código Civil y Comercial), y TikTok no acepta la voz de un particular sin su consentimiento. Una licencia de la grabación no alcanza: hace falta el permiso de la persona.
+- **Frases:** las escribe la misma IA de los textos y pasan su control: cada número tiene que estar en su pantalla, hasta 11 palabras y unos 62 caracteres dichos (unos 3,5 a 4,5 s), voseo, sin teléfonos, webs, hashtags ni "!", y WhatsApp solo si el video lo muestra. Si fallan dos veces, salen de los textos de las pantallas. Leídas tal cual suenan robóticas: conviene que digan lo mismo con otras palabras.
+- **Memoria:** el motor mira la memoria libre antes de llamar a la voz. Si no alcanza, el video espera la vuelta siguiente (o sale sin voz si es para hoy). La voz corre con tope (`systemd-run --user --scope -p MemoryMax=…`): si se pasa, se corta solo la voz. El tope cuenta también la caché del archivo del modelo, que el kernel libera sola.
+- **Horario:** con poca memoria, de madrugada (`VOZ_HORARIO=1-6`); de día solo salen los urgentes. La PC tiene que quedar prendida. Opcional (`VOZ_CERRAR_CHROME`), en ese horario y con la compu sin usar, el motor cierra el navegador con SIGTERM solo al proceso principal, como al apagar la compu. Ojo: los procesos hijos de Chrome reescriben su línea de comandos (en `/proc/<pid>/cmdline` quedan como un solo texto con espacios), así que se los reconoce por el proceso padre.
+- **Aviso de IA (obligatorio en las redes para voces realistas):** "Voz generada con IA" en el video y en el posteo, y la marca oficial: `is_ai_generated=true` en el contenedor de Instagram y `metadata.tiktok.isAiGenerated` / `metadata.youtube.isAiGenerated` en Buffer. Si una red rechaza la marca, se publica sin ella (el aviso queda en el video y el texto) y se anota.
+- **Audio:** cada frase arranca con su pantalla (0,3 / 5,3 / 10,3 s) y puede durar 4,6 / 4,6 / 4,5 s, con hasta un 20 % más de velocidad; si no entra, el video sale sin voz. La música baja unos 10 dB mientras habla la voz y todo queda en -16 LUFS (dos pasadas). El MP4 lleva el comentario del aviso de IA: así sabe el motor, al publicar, qué video tiene voz.
+
 ## Seguridad y operación
 - **Archivos:** `.env` con permisos 600. Los tokens no van a logs, informes ni chats.
 - **Claves temporales** (por ejemplo, la API de n8n para importar el flujo): se crean para la tarea y se revocan al terminar.
@@ -123,4 +136,4 @@ En el plugin videos-redes, el motor ya programado está en `sistema/` (raíz del
 - **Videos largos de YouTube:** que respondan búsquedas reales (las preguntas que llegan por WhatsApp). Conviene mezclar: la IA hace el guion, el título y los gráficos, y el equipo filma en el lugar.
   - Medí consultas, no vistas: link de WhatsApp con texto precargado por video.
   - Se suben y programan a mano en YouTube Studio, que es gratis.
-- **IA en YouTube:** no está prohibida, pero se castiga lo masivo y repetitivo ("inauthentic content"). La voz sintética realista que imita a una persona hay que declararla.
+- **IA en YouTube:** no está prohibida, pero se castiga lo masivo y repetitivo ("inauthentic content"). La voz sintética realista que imita a una persona hay que declararla (el motor lo hace solo: ver "Voz en off").

@@ -8,6 +8,7 @@ import { caminoInstagram, instagramConfigurado, renovarToken, wordpressConfigura
 import { enviarTexto, iniciarEscucha, telegramConfigurado } from "./telegram.mjs";
 import { modoTextos } from "./textos.mjs";
 import { bufferConfigurado, canalesBuffer } from "./buffer.mjs";
+import { horarioVozTexto, vozActiva } from "./voz.mjs";
 import { borrarViejos, log } from "./util.mjs";
 
 const LOCALES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
@@ -58,6 +59,7 @@ const rutas = {
     tiktok: bufferConfigurado(),
     buffer: bufferConfigurado(),
     wordpress: wordpressConfigurado(),
+    voz: vozActiva() ? { nombre: CONFIG.voz.nombre, horario: CONFIG.voz.horario, cerrar_chrome: CONFIG.voz.cerrarChrome } : false,
   }),
   "POST /planificar": async (cuerpo) => planificar(cuerpo),
   "POST /generar": async (cuerpo) => generar(cuerpo),
@@ -131,7 +133,7 @@ servidor.listen(CONFIG.puerto, CONFIG.host, () => {
   if (CONFIG.errorNegocio) log(`⚠️ config/negocio.json tiene un error: ${CONFIG.errorNegocio}`);
   if (CONFIG.pausado) log("⏸️ En pausa (config/negocio.json): no se agenda, no se genera y no se publica nada.");
   log(
-    `Telegram: ${telegramConfigurado() ? "sí" : "NO"} · Estilo: ${CONFIG.estilo} · Textos: ${modoTextos()} · Instagram: ${instagramConfigurado() ? `sí (vía ${caminoInstagram()})` : "NO"} · TikTok/YouTube: ${bufferConfigurado() ? "sí (Buffer)" : "NO"} · WordPress: ${wordpressConfigurado() ? "sí" : "NO"}`,
+    `Telegram: ${telegramConfigurado() ? "sí" : "NO"} · Estilo: ${CONFIG.estilo} · Textos: ${modoTextos()} · Instagram: ${instagramConfigurado() ? `sí (vía ${caminoInstagram()})` : "NO"} · TikTok/YouTube: ${bufferConfigurado() ? "sí (Buffer)" : "NO"} · WordPress: ${wordpressConfigurado() ? "sí" : "NO"} · Voz: ${vozActiva() ? `sí ("${CONFIG.voz.nombre}", ${horarioVozTexto()})` : "NO"}`,
   );
   if (CONFIG.host !== "127.0.0.1" && !CONFIG.clave) log("⚠️ Escucha fuera de esta PC sin MOTOR_CLAVE: solo se aceptan pedidos locales.");
 });
