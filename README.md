@@ -59,7 +59,7 @@ El video puede decir con **tu voz** lo mismo que cada pantalla. La arma **VoxCPM
   - **completa:** el modelo original con PyTorch. Para compus con placa NVIDIA de 8 GB o más (en procesador usa unos 11 GB y es lenta).
 - Después, `npm run voz-medir` hace la prueba de verdad: arma la voz de un video, mide cuánto tarda y cuánta memoria usa, y deja todo ajustado para tu compu. Si no la banca, los videos siguen saliendo sin voz.
 - **Solo tu voz** (una grabación de 15 segundos con el celular) o la de alguien que te dio permiso.
-- El video y el posteo dicen **"Voz generada con IA"** y se publica con la marca de IA de cada red, como piden Instagram, TikTok y YouTube.
+- El video y el posteo dicen **"Voz generada con IA"** y se publica con la marca de IA de cada red. Instagram y TikTok piden declarar las voces realistas hechas con IA; YouTube no lo pide si es tu propia voz clonada, pero la marca no te baja el alcance.
 
 Se suma con el paso 9 de `/videos-redes:armar` o pidiéndole a Claude "quiero sumar la voz en off". Detalle en [sistema/README.md](sistema/README.md#voz-en-off-opcional).
 

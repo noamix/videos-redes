@@ -56,7 +56,7 @@ Si tu compu la banca, el video puede llevar tu voz diciendo lo mismo que cada pa
 
 - **Para sumarla:** pedile a Claude "quiero sumar la voz en off". Primero revisa si tu compu la banca, sin instalar nada. Si la banca, la instala, te pide que grabes con el celular un texto corto (unos 15 segundos) y mide cuánto tarda.
 - **Solo tu voz**, o la de alguien que te dio permiso para usarla. No se clona la voz de otras personas.
-- **"Voz generada con IA":** el video y el texto del posteo lo dicen, y se publica con la marca de IA de cada red. Lo piden Instagram, TikTok y YouTube para las voces hechas con IA. No se saca.
+- **"Voz generada con IA":** el video y el texto del posteo lo dicen, y se publica con la marca de IA de cada red. Instagram y TikTok piden declarar las voces realistas hechas con IA (con su marca; TikTok también acepta un texto propio en el video o el posteo). YouTube no lo pide si es tu propia voz clonada.
 - **Cuándo se arma:** si tu compu tiene poca memoria, de madrugada (la PC tiene que quedar prendida). De día salen solo los videos de hoy. Si a esa hora falta memoria, en la planilla vas a ver la nota "Espera la voz": se arma en la vuelta siguiente.
 - **Si un video sale sin voz:** la nota de la fila dice por qué. El video sale igual.
 - En Telegram, arriba del video, ves lo que dice la voz. Si no te gusta, tocá **Rehacer**.

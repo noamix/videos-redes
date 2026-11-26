@@ -116,4 +116,4 @@ Ofrecerla al final, cuando el resto anda: el video dice con su voz lo mismo que 
 6. `npm run voz-probar` y que la escuche (queda en `salida/`). Si alguna palabra suena rara, copiar `voz/pronunciacion.ejemplo.txt` como `voz/pronunciacion.txt` y agregarla.
 7. Si el horario quedó de madrugada, la PC tiene que quedar prendida de noche. Si falta memoria a esa hora, ofrecerle `VOZ_CERRAR_CHROME` (`npm run cargar-clave -- VOZ_CERRAR_CHROME --valor si`): solo con su OK, después de mostrarle `npm run chrome-probar`.
 8. `systemctl --user restart videos-redes`, `npm run chequeo` (línea "Voz en off"), `npm run n8n -- --importar` (o reimportarlo a mano) para que n8n también corra en el horario de la voz, y `npm run prueba` para que vea un video con voz.
-9. Contarle que el video y el posteo dicen "Voz generada con IA" y que se publica con la marca de IA de cada red: lo piden Instagram, TikTok y YouTube. No se saca.
+9. Contarle que el video y el posteo dicen "Voz generada con IA" y que se publica con la marca de IA de cada red: Instagram y TikTok piden declarar las voces realistas hechas con IA (YouTube no, si es la propia voz clonada). No se saca sin preguntarle.

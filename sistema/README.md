@@ -76,7 +76,7 @@ Cómo la usa el motor:
 - **Frases:** una por pantalla, con los mismos datos (los números tienen que estar en su pantalla). Las escribe la IA de los textos (`prompts/voz.md`) y pasan su control; si no, salen de los textos de las pantallas. Los números, precios y medidas se leen con palabras, y `voz/pronunciacion.txt` (modelo: `pronunciacion.ejemplo.txt`) corrige palabras puntuales.
 - **Memoria:** antes de llamar a la voz mira la memoria libre. Si no alcanza y el video no es urgente, queda pendiente para la vuelta siguiente; si es para hoy, sale sin voz. La voz corre dentro de un tope (`systemd-run`): si se pasa, se corta solo la voz.
 - **Horario** (`VOZ_HORARIO`, por ejemplo `1-6`): la voz se arma en esas horas y de día solo salen los urgentes. Con `VOZ_CERRAR_CHROME=si`, en ese horario y con la compu sin usar, el motor cierra el navegador en forma ordenada si hace falta memoria (`npm run chrome-probar` muestra qué cerraría).
-- **Aviso de IA:** el video y el posteo dicen "Voz generada con IA" y se publica con la marca de IA de cada red (Instagram, TikTok y YouTube la piden para voces realistas). No lo saques.
+- **Aviso de IA:** el video y el posteo dicen "Voz generada con IA" y se publica con la marca de IA de cada red. Instagram y TikTok piden declarar las voces realistas hechas con IA; YouTube no lo pide si es la propia voz clonada (la marca no baja el alcance). No lo saques sin pensarlo: si una red rechaza su marca, el texto es lo que queda.
 - **Otro programa de voz:** sirve cualquier comando que cumpla el contrato de `voz/voz_videos.py` (`--estado` y `--pedido`, una línea JSON por la salida).
 
 ## Reglas

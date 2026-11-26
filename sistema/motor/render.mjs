@@ -182,7 +182,7 @@ export async function renderizar({ nombreBase, textos, linea, fotos, precio = nu
     precio_mes: precio?.mes || "",
     whatsapp: CONFIG.whatsapp || "",
     beneficios: (linea.beneficios || []).filter(Boolean).join("|"),
-    // Aviso en pantalla cuando el video lleva voz hecha con IA (lo piden Instagram, TikTok y YouTube).
+    // Aviso en pantalla cuando el video lleva voz hecha con IA (Instagram y TikTok piden declararla; TikTok acepta un texto propio).
     aviso_ia: voz?.tramos?.length ? CONFIG.voz.aviso : "",
   };
   // Estilo "cajas": los dos colores de la marca (config/negocio.json); sin ellos, amarillo y negro.
