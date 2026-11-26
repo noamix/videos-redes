@@ -3,8 +3,18 @@
 //  · config/negocio.json: los datos del negocio (marca, web, hora, estilo, colores, WhatsApp, pausa…).
 //    Se vuelve a leer solo cuando cambia: no hace falta reiniciar el motor.
 import fs from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+// Redes sin IPv6: cuando un servidor tiene IPv4 e IPv6, Node le da solo 250 ms a cada intento de conexión. Si el
+// primero tarda un poco más (pasó con Telegram), corta, prueba el otro y falla con ETIMEDOUT. Con 1 s anda. Va acá
+// para que lo tengan también los comandos sueltos (chequeo, prueba, ig-probar), no solo el servicio.
+try {
+  net.setDefaultAutoSelectFamilyAttemptTimeout(1000);
+} catch {
+  // Node muy viejo: no tiene esta opción
+}
 
 export const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -114,6 +124,34 @@ export const CONFIG = {
     token: v("TELEGRAM_BOT_TOKEN"),
     chat: v("TELEGRAM_CHAT_ID"),
     base: v("TELEGRAM_API_BASE", "https://api.telegram.org"),
+    // Horas en que los mensajes llegan sin sonido ("23-7" = de 23:00 a 7:59). Vacío = siempre con sonido.
+    silencio: v("TELEGRAM_SILENCIO", "23-7"),
+  },
+  // Voz en off (sistema/voz: VoxCPM2 completa o liviana). Los valores de memoria y horario los deja el instalador
+  // de la voz según la máquina (npm run voz-instalar). Ver README, "Voz en off".
+  voz: {
+    // auto = con voz si VOZ_COMANDO está cargado · no = videos sin voz
+    modo: v("VOZ_MODO", "auto").toLowerCase(),
+    comando: v("VOZ_COMANDO"),
+    nombre: v("VOZ_NOMBRE", "mi-voz"),
+    // Memoria disponible que hace falta antes de llamar al comando (liviana: unos 5 GB; completa en procesador: 11).
+    memoriaMinMb: Number(v("VOZ_MEMORIA_MIN_MB", "5000")),
+    // Tope de memoria del comando (systemd-run): si se pasa, el sistema corta solo la voz, nunca n8n ni el motor.
+    tope: v("VOZ_TOPE_MEMORIA", "6G"),
+    topeSwap: v("VOZ_TOPE_SWAP", "1G"),
+    // Horas en que se arma la voz ("1-6" = de 1:00 a 6:59). Vacío = a cualquier hora. Fuera del horario solo se
+    // generan los videos urgentes; el resto espera.
+    horario: v("VOZ_HORARIO", ""),
+    // Dentro del horario, si falta memoria y la compu está sin usar, el motor cierra el navegador en forma ordenada.
+    cerrarChrome: si("VOZ_CERRAR_CHROME", false),
+    inactivoMin: Number(v("VOZ_INACTIVO_MIN", "30")),
+    // Tope de tiempo del comando de voz. Con 12 min, el video entero entra en los 30 min que n8n le espera al motor.
+    timeoutMin: Number(v("VOZ_TIMEOUT_MIN", "12")),
+    // Urgente = el video es para hoy (o para dentro de estos días): sale aunque no haya memoria para la voz.
+    urgenteDias: Number(v("VOZ_URGENTE_DIAS", "0")),
+    aviso: v("VOZ_AVISO", "Voz generada con IA"),
+    // Si una frase no entra en su pantalla, se acelera hasta este punto (1.2 = 20 % más rápido).
+    tempoMax: Number(v("VOZ_TEMPO_MAX", "1.2")),
   },
   n8nWebhook: v("N8N_WEBHOOK_RESPUESTAS", "http://127.0.0.1:5678/webhook/videos-redes-respuesta"),
   // Solo para armar el flujo de n8n (npm run n8n)

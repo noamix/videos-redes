@@ -1,7 +1,8 @@
 // Genera un video de prueba sin pasar por n8n y sin publicar nada.
 //   npm run prueba                         → usa el producto de prueba de config/negocio.json (producto_prueba)
 //   npm run prueba -- pedido.json          → usa un pedido propio (mismo formato que manda n8n)
-//   agregá --sin-telegram para no mandarlo al celular
+//   agregá --sin-telegram para no mandarlo al celular y --sin-voz para no armar la voz en off
+//   (con voz, mirá antes que haya memoria libre: npm run voz-estado)
 // En Telegram sale marcado como PRUEBA y sus botones no cambian la planilla.
 import fs from "node:fs/promises";
 import { CONFIG } from "./config.mjs";
@@ -34,6 +35,7 @@ if (archivo) {
   };
 }
 if (args.includes("--sin-telegram")) pedido.sin_telegram = true;
+if (args.includes("--sin-voz")) pedido.sin_voz = true;
 pedido.prueba = true;
 const fila = await generar(pedido);
 console.log(JSON.stringify(fila, null, 2));

@@ -99,14 +99,19 @@ export async function borrarDeWordpress(id) {
 }
 
 // ---------- Contenedores ----------
-function datosDelReel(caption) {
-  return { media_type: "REELS", caption: caption.slice(0, 2200), share_to_feed: "true" };
+// conIa: el video lleva voz hecha con IA → marca oficial "Información de IA" (is_ai_generated, desde junio de 2026).
+function datosDelReel(caption, conIa = false) {
+  const d = { media_type: "REELS", caption: caption.slice(0, 2200), share_to_feed: "true" };
+  if (conIa) d.is_ai_generated = "true";
+  return d;
 }
 
+const rechazoLaMarcaIa = (e) => /is_ai_generated/i.test(String(e?.message || ""));
+
 /** Camino "facebook": crea el contenedor y sube el archivo directo a Meta. Devuelve el id del contenedor. */
-async function contenedorConSubidaDirecta({ ruta, caption }) {
+async function contenedorConSubidaDirecta({ ruta, caption, conIa = false }) {
   const buf = await fs.readFile(ruta);
-  const contenedor = await ig("POST", `/${CONFIG.instagram.userId}/media`, { ...datosDelReel(caption), upload_type: "resumable" });
+  const contenedor = await ig("POST", `/${CONFIG.instagram.userId}/media`, { ...datosDelReel(caption, conIa), upload_type: "resumable" });
   if (!contenedor.id) throw new Error("Meta no devolvió el contenedor para subir el video");
   const destino = contenedor.uri || `${CONFIG.instagram.rupload}/ig-api-upload/${CONFIG.instagram.version}/${contenedor.id}`;
   const r = await traer(
@@ -128,8 +133,8 @@ async function contenedorConSubidaDirecta({ ruta, caption }) {
 }
 
 /** Camino "instagram" (o respaldo): Meta baja el video desde una URL pública de WordPress. */
-async function contenedorConUrl({ caption }, url) {
-  const contenedor = await ig("POST", `/${CONFIG.instagram.userId}/media`, { ...datosDelReel(caption), video_url: url });
+async function contenedorConUrl({ caption, conIa = false }, url) {
+  const contenedor = await ig("POST", `/${CONFIG.instagram.userId}/media`, { ...datosDelReel(caption, conIa), video_url: url });
   return contenedor.id;
 }
 
@@ -162,11 +167,21 @@ async function publicarContenedor(contenedorId) {
   return { ok: true, mediaId: publicado.id, permalink, mediaUrl };
 }
 
-async function publicarConWordpress({ ruta, caption }) {
+async function publicarConWordpress({ ruta, caption, conIa = false }) {
   const medio = await subirAWordpress(ruta);
   log(`Video subido a WordPress para Instagram: ${medio.url}`);
   try {
-    return await publicarContenedor(await contenedorConUrl({ caption }, medio.url));
+    let contenedorId;
+    let sinMarcaIa = false;
+    try {
+      contenedorId = await contenedorConUrl({ caption, conIa }, medio.url);
+    } catch (e) {
+      if (!conIa || !rechazoLaMarcaIa(e)) throw e;
+      log(`Instagram no aceptó la marca de IA (${e.message}); publico sin la marca.`);
+      sinMarcaIa = true;
+      contenedorId = await contenedorConUrl({ caption }, medio.url);
+    }
+    return { ...(await publicarContenedor(contenedorId)), sinMarcaIa };
   } finally {
     if (CONFIG.wordpress.borrarDespues) {
       await borrarDeWordpress(medio.id).catch((e) => log(`No pude borrar el video de WordPress: ${e.message}`));
@@ -175,40 +190,48 @@ async function publicarConWordpress({ ruta, caption }) {
 }
 
 /** Publica un Reel. Devuelve { ok, permalink, mediaId } o { ok:false, omitido, motivo }. */
-export async function publicarReel({ ruta, caption }) {
+export async function publicarReel({ ruta, caption, conIa = false }) {
   if (!instagramConfigurado()) return { ok: false, omitido: true, motivo: "Instagram no está configurado en el .env" };
   if (porFacebook()) {
     let contenedorId;
+    let sinMarcaIa = false;
     try {
-      contenedorId = await contenedorConSubidaDirecta({ ruta, caption });
+      try {
+        contenedorId = await contenedorConSubidaDirecta({ ruta, caption, conIa });
+      } catch (e) {
+        if (!conIa || !rechazoLaMarcaIa(e)) throw e;
+        log(`Instagram no aceptó la marca de IA (${e.message}); publico sin la marca.`);
+        sinMarcaIa = true;
+        contenedorId = await contenedorConSubidaDirecta({ ruta, caption });
+      }
     } catch (e) {
       // Si la subida directa falla y hay WordPress, se prueba con la URL pública.
       if (!wordpressConfigurado() || /se venció o se revocó/.test(e.message)) throw e;
       log(`Falló la subida directa (${e.message}); pruebo con WordPress`);
-      return publicarConWordpress({ ruta, caption });
+      return publicarConWordpress({ ruta, caption, conIa: conIa && !sinMarcaIa });
     }
-    return publicarContenedor(contenedorId);
+    return { ...(await publicarContenedor(contenedorId)), sinMarcaIa };
   }
   if (!wordpressConfigurado()) return { ok: false, omitido: true, motivo: "Falta la clave de aplicación de WordPress en el .env" };
-  return publicarConWordpress({ ruta, caption });
+  return publicarConWordpress({ ruta, caption, conIa });
 }
 
 /**
  * Sube el video y espera que Meta lo procese, sin publicarlo (el contenedor se descarta solo en 24 h).
  * Camino "facebook": subida directa. Camino "instagram": por WordPress (si está configurado).
  */
-export async function probarSubida({ ruta }) {
+export async function probarSubida({ ruta, conIa = false }) {
   if (!instagramConfigurado()) throw new Error("Instagram no está configurado en el .env");
   const caption = "Prueba de subida (no se publica)";
   if (porFacebook()) {
-    const contenedor = await contenedorConSubidaDirecta({ ruta, caption });
+    const contenedor = await contenedorConSubidaDirecta({ ruta, caption, conIa });
     await esperarProcesado(contenedor);
     return { contenedor };
   }
   if (!wordpressConfigurado()) throw new Error("Falta la clave de aplicación de WordPress en el .env");
   const medio = await subirAWordpress(ruta);
   try {
-    const contenedor = await contenedorConUrl({ caption }, medio.url);
+    const contenedor = await contenedorConUrl({ caption, conIa }, medio.url);
     await esperarProcesado(contenedor);
     return { contenedor };
   } finally {

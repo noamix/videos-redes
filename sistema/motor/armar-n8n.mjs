@@ -9,6 +9,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { CONFIG, RAIZ } from "./config.mjs";
 import { COLUMNAS_CALENDARIO } from "./flujo.mjs";
+import { vozActiva } from "./voz.mjs";
+import { horasCron } from "./util.mjs";
+
+// Con voz en off y VOZ_HORARIO (por ejemplo de madrugada), el flujo también corre en esas horas: ahí se arman
+// los videos con voz.
+const horasNoche = vozActiva() ? horasCron(CONFIG.voz.horario) : "";
+const CRON_GENERAR = horasNoche ? `0 ${horasNoche},8-21 * * *` : "0 8-21 * * *";
+const RELOJ_GENERAR = horasNoche ? `Cada hora (${CONFIG.voz.horario.replace(/\s+/g, "").replace("-", " a ")} y 8 a 21 h)` : "Cada hora (8 a 21 h)";
 
 const PLANILLA = CONFIG.n8n.planillaId || "PEGAR_ACA_EL_ID_DE_LA_PLANILLA";
 const MOTOR = (CONFIG.n8n.motorUrl || `http://127.0.0.1:${CONFIG.puerto}`).replace(/\/+$/, "");
@@ -144,20 +152,20 @@ const cuerpoPlanificar =
   "={{ JSON.stringify({ productos: $('Leer Productos').all().map(i => i.json), calendario: $('Leer Calendario').all().map(i => i.json) }) }}";
 nodos.push(
   nota(
-    `## 🎬 Videos diarios ${CONFIG.marca}\n**1. Generar:** cada hora (8 a 21 h) agenda los días que faltan y genera hasta ${CONFIG.maxPorCorrida} videos. Cada video te llega a Telegram para aprobar.\n**2. Respuestas:** los botones de Telegram cambian el estado en la planilla. *Rehacer* lo vuelve a generar al toque.\n**3. Publicar:** cada 15 min; desde la hora de publicación (config/negocio.json) sube el video aprobado del día a Instagram y, por Buffer, a TikTok y YouTube Shorts.\n**4. Revisión:** los lunes revisa que Instagram y Buffer sigan conectados.\n\nTodo el trabajo pesado lo hace el **motor** (servicio en esta PC).`,
+    `## 🎬 Videos diarios ${CONFIG.marca}\n**1. Generar:** ${RELOJ_GENERAR.toLowerCase()} agenda los días que faltan y genera hasta ${CONFIG.maxPorCorrida} videos. Cada video te llega a Telegram para aprobar.${horasNoche ? " Con voz en off, los videos se arman de madrugada; de día, solo los urgentes." : ""}\n**2. Respuestas:** los botones de Telegram cambian el estado en la planilla. *Rehacer* lo vuelve a generar${horasNoche ? " (de día, esa noche, salvo que sea urgente)" : " al toque"}.\n**3. Publicar:** cada 15 min; desde la hora de publicación (config/negocio.json) sube el video aprobado del día a Instagram y, por Buffer, a TikTok y YouTube Shorts.\n**4. Revisión:** los lunes revisa que Instagram y Buffer sigan conectados.\n\nTodo el trabajo pesado lo hace el **motor** (servicio en esta PC).`,
     [-420, -260],
     380,
     420,
     4,
   ),
-  reloj("Cada hora (8 a 21 h)", "0 8-21 * * *", [0, 0]),
+  reloj(RELOJ_GENERAR, CRON_GENERAR, [0, 0]),
   leerHoja("Productos", "Leer Productos", [220, 0]),
   leerHoja("Calendario", "Leer Calendario", [440, 0]),
   motor("Motor: planificar", "/planificar", [660, 0], { cuerpo: cuerpoPlanificar, timeoutMin: 2, extra: { executeOnce: true } }),
   partir("Días nuevos", "filas_nuevas", [880, -120]),
   guardarFilas("Agendar días nuevos", [1100, -120]),
   partir("Videos a generar", "a_generar", [880, 120]),
-  motor("Motor: generar video", "/generar", [1100, 120], { cuerpo: "={{ JSON.stringify($json) }}", timeoutMin: 20, extra: { onError: "continueErrorOutput" } }),
+  motor("Motor: generar video", "/generar", [1100, 120], { cuerpo: "={{ JSON.stringify($json) }}", timeoutMin: 30, extra: { onError: "continueErrorOutput" } }),
   codigo(
     "Fila con error",
     [
@@ -171,7 +179,7 @@ nodos.push(
   ),
   guardarFilas("Guardar video", [1540, 120]),
 );
-unir("Cada hora (8 a 21 h)", "Leer Productos");
+unir(RELOJ_GENERAR, "Leer Productos");
 unir("Leer Productos", "Leer Calendario");
 unir("Leer Calendario", "Motor: planificar");
 unir("Motor: planificar", "Días nuevos");

@@ -29,7 +29,8 @@ export function textosCompletos(t) {
 }
 
 // Reglas propias del negocio (config/negocio.json): texto libre y palabras que nunca pueden aparecer.
-function reglasExtra() {
+// También van en el pedido de las frases de la voz (frases.mjs).
+export function reglasExtra() {
   const partes = [];
   if (CONFIG.reglasTextos) partes.push(CONFIG.reglasTextos);
   if (CONFIG.palabrasProhibidas.length) partes.push(`Nunca uses estas palabras: ${CONFIG.palabrasProhibidas.join(", ")}.`);
@@ -82,7 +83,7 @@ export function aplanar(r, linea) {
 }
 
 // Formas de "tú" que no se pueden confundir con otra cosa (el sistema escribe con voseo).
-const TUTEO = /\b(tienes|puedes|quieres|necesitas|eres|sabes|vendes|buscas|pides|elige|pide|haz|descubre|aprovecha|encuentra|consigue)\b/i;
+export const TUTEO = /\b(tienes|puedes|quieres|necesitas|eres|sabes|vendes|buscas|pides|elige|pide|haz|descubre|aprovecha|encuentra|consigue)\b/i;
 
 // Devuelve la lista de problemas (vacía si está todo bien).
 export function controlar(t, { mostrarPrecio, lineaClave }) {
@@ -129,7 +130,7 @@ export function textosDeRespaldo({ producto, linea }) {
   };
 }
 
-function extraerJson(texto) {
+export function extraerJson(texto) {
   const a = texto.indexOf("{");
   const b = texto.lastIndexOf("}");
   if (a < 0 || b <= a) throw new Error("la IA no devolvió un JSON");
@@ -242,6 +243,17 @@ export function modoTextos() {
   if (PROVEEDORES.gemini.configurado()) return "gemini";
   if (PROVEEDORES.claude.configurado()) return "claude";
   return "plantillas";
+}
+
+/** Le pide un texto a la IA configurada (Gemini o Claude). Lo usan también las frases de la voz. */
+export async function llamarIA(system, mensajes) {
+  const modo = modoTextos();
+  if (!PROVEEDORES[modo]) throw new Error("no hay IA configurada");
+  return PROVEEDORES[modo].llamar(system, mensajes);
+}
+
+export function nombreIA() {
+  return PROVEEDORES[modoTextos()]?.nombre || "Plantillas";
 }
 
 /** Para el chequeo: le pide a la IA configurada una respuesta mínima. */

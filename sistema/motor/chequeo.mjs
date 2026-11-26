@@ -1,14 +1,16 @@
 // Diagnóstico: revisa que todo esté listo y dice qué falta. No publica nada.
 //   npm run chequeo               → revisa sin gastar nada
 //   npm run chequeo -- --completo → además manda un mensaje de prueba por Telegram y prueba la IA de los textos (Gemini)
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { CONFIG, RUTAS, datosDeLinea, lineas } from "./config.mjs";
+import { estadoVoz, horarioVozTexto, inactividadMin, memoriaDisponibleMb, probarTope, vozActiva } from "./voz.mjs";
+import { controlarFrases, frasesDePlantilla, pantallasDelVideo } from "./frases.mjs";
 import { caminoInstagram, cupoInstagram, instagramConfigurado, probarInstagram, wordpressConfigurado } from "./instagram.mjs";
 import { textosDePlantilla } from "./plantillas.mjs";
 import { bufferConfigurado, canalesBuffer } from "./buffer.mjs";
 import { api, enviarTexto } from "./telegram.mjs";
 import { controlar, modoTextos, probarIA } from "./textos.mjs";
-import { correr, fechaLocal, sumarDias, traer } from "./util.mjs";
+import { correr, fechaLocal, rangoTexto, sumarDias, traer } from "./util.mjs";
 
 const completo = process.argv.includes("--completo");
 let fallas = 0;
@@ -163,6 +165,79 @@ await paso("Textos", async () => {
   }
 });
 
+await paso("Música", async () => {
+  const temas = existsSync(RUTAS.musica) ? readdirSync(RUTAS.musica).filter((n) => /\.(mp3|m4a|aac|wav|ogg)$/i.test(n)) : [];
+  temas.length
+    ? ok(`Música: ${temas.length} tema(s) en musica/`)
+    : aviso(
+        "Música: la carpeta musica/ está vacía, así que los videos salen sin música. Si querés música, bajá temas " +
+          "instrumentales con licencia libre (por ejemplo de Pixabay Music, sin el aviso de Content ID) y ponelos en musica/",
+      );
+});
+
+await paso("Voz en off", async () => {
+  if (!vozActiva()) {
+    return aviso(
+      CONFIG.voz.modo === "no"
+        ? "Voz en off apagada (VOZ_MODO=no)"
+        : "Voz en off sin instalar (es opcional). Para ver si tu compu la banca: npm run voz-evaluar",
+    );
+  }
+  const e = await estadoVoz();
+  if (!e.ok) return mal(`Voz en off: el comando no responde (${e.error})`, "Corré npm run voz-estado. Mientras tanto los videos salen sin voz.");
+  if (!e.tieneVoz) {
+    return mal(
+      `Voz en off: no está la voz "${CONFIG.voz.nombre}" (hay: ${e.voces.join(", ") || "ninguna"})`,
+      `Grabá tu voz leyendo sistema/voz/texto-para-grabar.txt y cargala con npm run voz-preparar -- archivo-de-audio (o cambiá VOZ_NOMBRE)`,
+    );
+  }
+  const motor = e.motor ? ` ${e.motor}` : "";
+  ok(`Voz en off: ${e.modelo || "VoxCPM2"}${motor} en ${e.dispositivo || "?"}, con la voz "${CONFIG.voz.nombre}". Se arma ${horarioVozTexto()}`);
+  const libre = memoriaDisponibleMb();
+  if (libre !== null) {
+    const falta = libre < CONFIG.voz.memoriaMinMb;
+    (falta ? aviso : ok)(
+      `Memoria disponible ahora: ${libre} MB (la voz necesita ${CONFIG.voz.memoriaMinMb} MB)` +
+        (falta ? `. Si falta cuando toca armar la voz, el video espera la vuelta siguiente (los urgentes salen sin voz)` : ""),
+    );
+  }
+  const tope = await probarTope();
+  tope.ok
+    ? ok(`Tope de memoria para la voz: systemd-run anda (MemoryMax=${CONFIG.voz.tope})`)
+    : aviso(`Tope de memoria para la voz: ${tope.motivo}. La voz corre igual, pero sin tope`);
+  if (CONFIG.voz.cerrarChrome) {
+    const min = await inactividadMin();
+    if (!String(CONFIG.voz.horario || "").trim()) aviso("VOZ_CERRAR_CHROME=si no hace nada sin VOZ_HORARIO: el navegador solo se cierra en el horario de la voz");
+    else if (min === null) aviso("No pude saber cuánto hace que no usás la compu: no voy a cerrar el navegador solo");
+    else ok(`Cierre del navegador en el horario de la voz: activo (si falta memoria y la compu lleva ${CONFIG.voz.inactivoMin} min sin uso; ahora: ${Math.round(min)} min)`);
+  }
+  // Las frases sin IA (respaldo de Gemini) tienen que entrar en 4 segundos con los textos de las plantillas.
+  const todas = lineas();
+  const claves = Object.keys(todas).filter((k) => !k.startsWith("_"));
+  const ejemplos = [];
+  for (const k of claves.length ? claves : ["default"]) {
+    const nombre = todas[k]?.nombre || "Producto";
+    ejemplos.push([k, `${nombre} 30x40 x100 unid`, ""], [k, nombre, ""]);
+  }
+  const p = CONFIG.productoPrueba;
+  if (p?.producto) ejemplos.push([p.linea || "default", p.producto, p.detalles || ""]);
+  let sinFrases = 0;
+  let total = 0;
+  for (const [lineaClave, producto, detalles] of ejemplos) {
+    const linea = datosDeLinea(lineaClave);
+    for (let dia = 0; dia < 30; dia++) {
+      const t = textosDePlantilla({ fecha: sumarDias(fechaLocal(), dia), producto, lineaClave, linea, detalles, mostrarPrecio: false, precio: "" });
+      const pant = pantallasDelVideo(t, { linea });
+      const f = frasesDePlantilla(t, pant);
+      total++;
+      if (!f || controlarFrases(f, pant, { mostrarPrecio: false, linea }).length) sinFrases++;
+    }
+  }
+  sinFrases
+    ? aviso(`Frases de voz sin IA: ${sinFrases} de ${total} videos de ejemplo saldrían sin voz si la IA fallara (frases de config/textos-plantillas.json demasiado largas)`)
+    : ok(`Frases de voz sin IA (respaldo de la IA): OK (${total} videos de ejemplo)`);
+});
+
 await paso("Telegram", async () => {
   if (!CONFIG.telegram.token) return mal("Falta TELEGRAM_BOT_TOKEN", "Crealo con @BotFather en Telegram (/newbot) y cargalo con npm run cargar-clave -- TELEGRAM_BOT_TOKEN");
   const yo = await api("getMe");
@@ -173,7 +248,8 @@ await paso("Telegram", async () => {
     );
   }
   if (completo) await enviarTexto("👋 Prueba del sistema de videos: si ves esto, Telegram anda.");
-  ok(`Telegram: bot @${yo.username}, chat ${CONFIG.telegram.chat}${completo ? " (te mandé un mensaje de prueba)" : ""}`);
+  const silencio = CONFIG.telegram.silencio ? ` · sin sonido de ${rangoTexto(CONFIG.telegram.silencio)} h` : "";
+  ok(`Telegram: bot @${yo.username}, chat ${CONFIG.telegram.chat}${silencio}${completo ? " (te mandé un mensaje de prueba)" : ""}`);
 });
 
 await paso("n8n", async () => {

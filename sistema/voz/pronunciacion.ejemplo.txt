@@ -1,0 +1,13 @@
+# Cómo se dicen algunas palabras. Copialo como pronunciacion.txt (en esta misma carpeta) y dejá las que te sirvan.
+# Una línea por palabra:   palabra = cómo se dice
+#
+# - No distingue mayúsculas: "whatsapp", "WhatsApp" y "WHATSAPP" son lo mismo.
+# - Vale para todo lo que dice la voz de los videos. No hace falta reiniciar nada después de cambiarlo.
+# - Probá cómo suena con: npm run voz-probar -- "la frase con la palabra"
+# - Las líneas que empiezan con # no se usan.
+#
+# Ejemplos (sacales el # a las que quieras usar, o escribí las tuyas, como el nombre de tu marca):
+# e-commerce = i comers
+# ecommerce = i comers
+# delivery = delíveri
+# online = onláin

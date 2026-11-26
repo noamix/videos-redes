@@ -16,6 +16,7 @@ Qué frena:
      sobre la carpeta del sistema, no sobre otros proyectos.
   2. Los datos de n8n: `docker compose down -v` del sistema, borrar sus volúmenes y podar volúmenes.
   3. Publicar: Claude no corre los comandos que publican en las redes; eso lo hace el dueño.
+  4. La voz grabada del dueño (voz/voces): no se trae al espacio de Claude; se procesa en la PC.
 
 Bloquea con código de salida 2 y el motivo en stderr. Es una red de seguridad, no un encierro: las reglas
 de la skill siguen valiendo, y ante un error propio deja pasar.
@@ -65,6 +66,10 @@ AVISO_FLUJO = (
     "videos-redes: n8n/flujo.json lleva la clave del motor: no se lee, no se muestra y no se trae. Para "
     "subirlo a n8n: `npm run n8n -- --importar`, o desde la pantalla de n8n (Importar desde archivo)."
 )
+AVISO_VOZ = (
+    "videos-redes: la grabación de la voz del dueño (voz/voces) no sale de su compu: no se trae al espacio de "
+    "Claude. Para cargarla o probarla, en la PC: `npm run voz-preparar -- archivo --es-mi-voz` y `npm run voz-probar`."
+)
 AVISO_CLAVE_EN_COMANDO = (
     "videos-redes: las claves no van escritas en los comandos (quedan en el historial). Que el dueño la "
     "cargue en su terminal con `npm run cargar-clave -- NOMBRE`, que la pide sin mostrarla."
@@ -109,6 +114,11 @@ def es_flujo(ruta: str, cwd: str = "") -> bool:
     if not re.search(r"^(/|~|[A-Za-z]:\\|\$HOME)", r) and SISTEMA not in r.lower() and cwd:
         r = cwd.rstrip("/\\") + "/" + r
     return del_sistema(r) and bool(re.search(r"[\\/]n8n[\\/][^\\/]+\.json$", r, re.I))
+
+
+def es_voz_grabada(ruta: str) -> bool:
+    """Las voces grabadas del sistema (voz/voces/...): son la voz del dueño."""
+    return del_sistema(ruta) and bool(re.search(r"[\\/]voz[\\/]voces([\\/]|$)", ruta))
 
 
 def es_raiz(ruta: str) -> bool:
@@ -455,6 +465,8 @@ def pre_stage(datos: dict) -> None:
         bloquear(AVISO_RESPALDOS)
     if any(es_flujo(r) for r in rutas):
         bloquear(AVISO_FLUJO)
+    if any(es_voz_grabada(r) for r in rutas):
+        bloquear(AVISO_VOZ)
 
 
 def pre_commit(datos: dict) -> None:

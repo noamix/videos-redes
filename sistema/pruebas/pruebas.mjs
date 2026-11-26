@@ -4,7 +4,7 @@
 //   npm run pruebas                → pruebas rápidas (unos segundos)
 //   npm run pruebas -- --render    → además arma un video de cada estilo con HyperFrames (unos minutos)
 //   agregá --conservar para no borrar la carpeta temporal (ahí quedan los videos de prueba)
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import { existsSync, statSync } from "node:fs";
 import http from "node:http";
@@ -74,7 +74,7 @@ await correrFfmpeg(["-f", "lavfi", "-i", "color=c=black:s=540x960:d=1", "-c:v", 
 const VIDEO = await fs.readFile(ARCHIVO_VIDEO);
 
 // ---------- Servidor falso ----------
-const estado = { telegram: [], updates: [], gemini: [], geminiRespuestas: [], graph: [], publicados: 0, rupload: [], buffer: [], borrados: [], n8n: [], n8nApi: [], flujos: [] };
+const estado = { telegram: [], updates: [], gemini: [], geminiRespuestas: [], graph: [], publicados: 0, rupload: [], buffer: [], borrados: [], n8n: [], n8nApi: [], flujos: [], rechazarIa: false };
 let contador = 0;
 let BASE = "";
 
@@ -160,6 +160,7 @@ const servidor = http.createServer(async (req, res) => {
       if (ruta === "/ig1" && req.method === "GET") return json(200, { id: "ig1", username: "cuenta_prueba" });
       if (ruta === "/ig1/content_publishing_limit") return json(200, { data: [{ quota_usage: 1, config: { quota_total: 100 } }] });
       if (ruta === "/ig1/media" && req.method === "POST") {
+        if (estado.rechazarIa && form.get("is_ai_generated")) return json(400, { error: { code: 100, message: "(#100) Param is_ai_generated is not supported" } });
         const id = `cont${++contador}`;
         return json(200, form.get("upload_type") === "resumable" ? { id, uri: `${BASE}/rupload/ig-api-upload/${m[1]}/${id}` } : { id });
       }
@@ -191,6 +192,8 @@ const servidor = http.createServer(async (req, res) => {
         });
       }
       if (/createPost/.test(q.query)) {
+        const md = q.variables.input.metadata || {};
+        if (estado.rechazarIa && (md.tiktok?.isAiGenerated || md.youtube?.isAiGenerated)) return json(200, { errors: [{ message: "Unknown field isAiGenerated" }] });
         const id = `post${++contador}`;
         return json(200, { data: { createPost: { post: { id, status: q.variables.input.saveToDraft ? "draft" : "sending" } } } });
       }
@@ -622,7 +625,177 @@ await probar("motor y chequeo", async () => {
 });
 if (motor) motor.kill("SIGTERM");
 
-// ---------- 12. Render con HyperFrames (opcional) ----------
+// ---------- 12. Voz en off ----------
+// Las partes del motor sin modelo, y el comando de voz con el motor "simulada" (un murmullo con forma de voz),
+// si hay un Python con numpy y num2words (el de voz/.venv, el de VOZ_PYTHON_PRUEBAS o python3).
+const voz = await import("../motor/voz.mjs");
+const fr = await import("../motor/frases.mjs");
+const { enRangoHorario, horasCron, horaLocal } = await import("../motor/util.mjs");
+const pythonVoz = [path.join(RAIZ, "voz/.venv/bin/python"), process.env.VOZ_PYTHON_PRUEBAS, "python3"]
+  .filter(Boolean)
+  .find((py) => (!py.includes("/") || existsSync(py)) && spawnSync(py, ["-c", "import numpy, num2words"]).status === 0);
+const DIR_VOZ = path.join(TMP, "voz");
+const COMANDO_VOZ = pythonVoz ? `${pythonVoz} ${path.join(RAIZ, "voz/voz_videos.py")}` : "";
+const vozOriginal = { ...CONFIG.voz };
+const conVozSimulada = (cambios = {}) => Object.assign(CONFIG.voz, { modo: "auto", comando: COMANDO_VOZ, nombre: "mi-voz", tope: "no", horario: "", memoriaMinMb: 1, timeoutMin: 2, ...cambios });
+const sinVoz = () => Object.assign(CONFIG.voz, vozOriginal);
+
+await probar("voz: horarios", async () => {
+  const a = (h) => new Date(`2026-11-25T${String(h).padStart(2, "0")}:30:00-03:00`);
+  ver("Horario que cruza la medianoche (23-7)", enRangoHorario("23-7", a(23)) && enRangoHorario("23-7", a(3)) && !enRangoHorario("23-7", a(12)));
+  ver("Horario de madrugada (1-6) y horario vacío", enRangoHorario("1-6", a(6)) && !enRangoHorario("1-6", a(7)) && !enRangoHorario("", a(3)));
+  ver("Horas del cron para n8n (también si cruza la medianoche)", horasCron("1-6") === "1-6" && horasCron("23-5") === "23-23,0-5" && horasCron("25-3") === "" && horasCron("x") === "");
+  Object.assign(CONFIG.voz, { modo: "auto", comando: "x", horario: "" });
+  const sinHorario = !voz.soloUrgentes() && voz.enHorarioVoz() && voz.horarioVozTexto() === "a cualquier hora";
+  const h = Number(horaLocal().slice(0, 2));
+  CONFIG.voz.horario = `${(h + 2) % 24}-${(h + 3) % 24}`;
+  const fuera = voz.soloUrgentes() && !voz.enHorarioVoz();
+  CONFIG.voz.horario = `${h}-${h}`;
+  const dentro = !voz.soloUrgentes() && voz.enHorarioVoz();
+  sinVoz();
+  ver("Sin VOZ_HORARIO la voz se arma a cualquier hora; con horario, fuera de él solo los urgentes", sinHorario && fuera && dentro);
+});
+
+await probar("voz: planificar", async () => {
+  const productos = [{ producto: "Taza A", linea: "tazas" }, { producto: "Remera A", linea: "remeras" }];
+  const h = Number(horaLocal().slice(0, 2));
+  Object.assign(CONFIG.voz, { modo: "auto", comando: "x", horario: `${(h + 2) % 24}-${(h + 3) % 24}`, urgenteDias: 0 });
+  const fuera = planificar({ productos, calendario: [] }, hoy);
+  CONFIG.voz.horario = `${h}-${h}`;
+  const dentro = planificar({ productos, calendario: [] }, hoy);
+  sinVoz();
+  ver("Fuera del horario de la voz solo genera el video de hoy y avisa cuántos esperan", fuera.a_generar.length === 1 && fuera.a_generar[0].fecha === hoy && /esperan el horario de la voz/.test(fuera.resumen), JSON.stringify(fuera.resumen));
+  ver("En el horario de la voz genera como siempre", dentro.a_generar.length === CONFIG.maxPorCorrida && !/esperan/.test(dentro.resumen));
+});
+
+await probar("voz: frases", async () => {
+  const textos = { etiqueta: "Tazas", p1: "Tu café, en la taza justa", p2_titulo: "Taza de cerámica", p2_punto_1: "Capacidad de 350 ml", p2_punto_2: "Pack de 6 unidades", p2_punto_3: "Apta lavavajillas", p3_titulo: "Pedilas hoy", p3_sub: "Todo el catálogo en la web" };
+  const linea = LINEAS.tazas;
+  const pant = fr.pantallasDelVideo(textos, { linea });
+  const f = fr.frasesDePlantilla(textos, pant);
+  ver("Sin IA, las frases salen de los textos de las pantallas y pasan el control", f?.length === 3 && fr.controlarFrases(f, pant, { linea }).length === 0 && /WhatsApp/.test(f[2]), JSON.stringify(f));
+  const control = (frases) => fr.controlarFrases(frases, pant, { linea });
+  ver("Un número que no está en su pantalla no pasa", control(["Tu café en la taza justa.", "Capacidad de 500 ml.", "Pedilas hoy."]).some((x) => x.includes("500")));
+  ver("Palabras prohibidas del negocio y de la línea", control(["Llegan desde Córdoba.", "La taza más barata.", "Pedilas hoy."]).filter((x) => /menciona/.test(x)).length === 2);
+  ver("Tuteo, exclamaciones, teléfonos y direcciones web", ["Pide la tuya.", "¡Llegaron!", "Llamá al 351 444-5555.", "Mirá marca.com.ar"].every((x) => control(["Tu café.", "Capacidad de 350 ml.", x]).length > 0));
+  ver("Una frase demasiado larga para 4 segundos no pasa", control(["Tu café en la taza justa, la de siempre, la que te gusta para cada mañana del año.", "Capacidad de 350 ml.", "Pedilas hoy."]).length > 0);
+  CONFIG.estilo = "clasico";
+  const pantClasico = fr.pantallasDelVideo(textos, { linea });
+  CONFIG.estilo = "cajas";
+  ver("En el estilo clásico (sin botón de WhatsApp) la voz no puede nombrar WhatsApp", fr.controlarFrases(["Tu café.", "Capacidad de 350 ml.", "Escribinos por WhatsApp."], pantClasico, { linea }).some((x) => /WhatsApp/.test(x)));
+  const caption = "Tazas de 350 ml.\nMirá la web.\n\n#tazas #cafe";
+  const con = fr.captionConAviso(caption, true);
+  ver(
+    "El aviso de IA va en el posteo antes de los hashtags, una sola vez, y sale si el video quedó sin voz",
+    con === "Tazas de 350 ml.\nMirá la web.\n🎙️ Voz generada con IA.\n\n#tazas #cafe" && fr.captionConAviso(con, true) === con && fr.captionConAviso(con, false) === caption,
+    con,
+  );
+  estado.geminiRespuestas.push(JSON.stringify({ voz: ["Tu café, en la taza justa.", "Tazas de cerámica de 350 ml.", "Pedilas hoy por WhatsApp."] }));
+  const ia = await fr.escribirFrases({ textos, linea, producto: "Taza" });
+  const pedidoIa = estado.gemini.at(-1)?.datos?.systemInstruction?.parts?.[0]?.text || "";
+  ver("Con IA: las frases las escribe Gemini, con las reglas del negocio", ia.origen === "gemini" && ia.frases?.[1] === "Tazas de cerámica de 350 ml." && pedidoIa.includes("MARCA DE PRUEBA") && pedidoIa.includes("Córdoba") && !/\{[A-Z_]+\}/.test(pedidoIa), JSON.stringify(ia));
+  estado.geminiRespuestas.push(JSON.stringify({ voz: ["Uno.", "Capacidad de 900 ml.", "Pedilas."] }), JSON.stringify({ voz: ["Uno.", "Capacidad de 900 ml.", "Pedilas."] }));
+  const mal = await fr.escribirFrases({ textos, linea, producto: "Taza" });
+  ver("Si la IA falla dos veces el control, las frases salen de las pantallas", mal.origen === "pantallas" && mal.frases?.length === 3 && /no pasaron el control/.test(mal.avisos.join(" ")), JSON.stringify(mal));
+});
+
+await probar("voz: dónde entra cada frase", async () => {
+  const p = voz.planearVoz([{ ruta: "a", duracion: 3 }, { ruta: "b", duracion: 5 }, { ruta: "c", duracion: 4 }], 1.2);
+  ver("Cada frase arranca con su pantalla y la que no entra se acelera un poco", p.ok && p.tramos.map((t) => t.inicio).join() === "0.3,5.3,10.3" && p.tramos[1].tempo > 1.08 && p.tramos[1].tempo < 1.1 && p.tramos[0].tempo === 1, JSON.stringify(p));
+  const no = voz.planearVoz([{ ruta: "a", duracion: 6.5 }], 1.2);
+  ver("Si habría que acelerarla de más, el video sale sin voz (con el motivo)", !no.ok && /máximo es 20 %/.test(no.motivo), JSON.stringify(no));
+});
+
+await probar("voz: navegador", async () => {
+  // Un /proc falso como el de una compu de verdad: los hijos de Chrome reescriben su línea de comandos.
+  const proc = path.join(TMP, "proc");
+  const proceso = async (pid, ppid, exe, cmdline) => {
+    const d = path.join(proc, String(pid));
+    await fs.mkdir(d, { recursive: true });
+    await fs.writeFile(path.join(d, "cmdline"), cmdline);
+    await fs.writeFile(path.join(d, "stat"), `${pid} (chrome) S ${ppid} 1 1 0 -1`);
+    await fs.symlink(exe, path.join(d, "exe"));
+  };
+  const CH = "/opt/google/chrome/chrome";
+  await proceso(1001, 900, CH, `${CH}\0--restore-last-session\0`);
+  await proceso(1002, 1001, CH, `${CH} --type=renderer --lang=es`);
+  await proceso(1003, 1002, CH, `${CH} --type=gpu-process`);
+  await proceso(1004, 901, "/snap/chromium/2890/usr/lib/chromium-browser/chrome", "/snap/chromium/2890/usr/lib/chromium-browser/chrome\0");
+  await proceso(1005, 950, CH, `${CH}\0--headless=new\0--remote-debugging-port=9222\0`);
+  await proceso(1006, 960, "/home/u/.cache/puppeteer/chrome-headless-shell/linux-1/chrome-headless-shell", "chrome-headless-shell\0");
+  await proceso(1007, 902, `${CH} (deleted)`, `${CH}\0`);
+  await proceso(1008, 903, "/usr/bin/firefox", "/usr/bin/firefox\0");
+  const todos = voz.procesosChrome(proc);
+  const principales = voz.chromesAbiertos(todos).map((p) => p.pid).sort();
+  ver("Del navegador solo cuentan los procesos principales (no los hijos, ni los sin ventana, ni HyperFrames)", principales.join() === "1001,1004,1007" && todos.length === 6, JSON.stringify(todos.map((p) => p.pid)));
+  Object.assign(CONFIG.voz, { modo: "auto", comando: "x", memoriaMinMb: 10 ** 9, cerrarChrome: true, horario: "" });
+  const sinHorario = await voz.prepararMemoria();
+  sinVoz();
+  ver("Sin VOZ_HORARIO nunca cierra el navegador, aunque falte memoria", !sinHorario.ok && !sinHorario.chromeCerrado && /la voz necesita/.test(sinHorario.motivo), JSON.stringify(sinHorario));
+});
+
+await probar("voz: n8n", async () => {
+  const destino = path.join(TMP, "flujo-voz.json");
+  const r = await correrNode("motor/armar-n8n.mjs", [], { env: { VIDEOS_FLUJO: destino, VOZ_COMANDO: "python3 voz.py", VOZ_HORARIO: "23-5" } });
+  const flujo = JSON.parse(await fs.readFile(destino, "utf8"));
+  const texto = JSON.stringify(flujo);
+  const generar = flujo.nodes.find((n) => n.name === "Motor: generar video");
+  ver("Con voz y horario, el flujo también corre en esas horas y le espera 30 min a cada video", r.codigo === 0 && texto.includes("0 23-23,0-5,8-21 * * *") && generar?.parameters?.options?.timeout === 1800000, r.salida);
+});
+
+if (!pythonVoz) {
+  console.log("⚪ Voz con el comando: salteada (no hay un Python con numpy y num2words; instalá la voz o pasá VOZ_PYTHON_PRUEBAS)");
+} else {
+  await probar("voz: comando simulado", async () => {
+    await fs.mkdir(DIR_VOZ, { recursive: true });
+    await fs.writeFile(path.join(DIR_VOZ, "config.json"), JSON.stringify({ motor: "simulada" }));
+    Object.assign(process.env, { VOZ_CONFIG: path.join(DIR_VOZ, "config.json"), VOZ_CARPETA_VOCES: path.join(DIR_VOZ, "voces"), VOZ_TURNO: path.join(DIR_VOZ, "turno.lock") });
+    // Una "grabación" de 13 s y la voz armada con preparar_voz.py, como lo haría el dueño.
+    const grabacion = path.join(DIR_VOZ, "grabacion.wav");
+    const armar = spawnSync(pythonVoz, ["-c", `import sys; sys.path.insert(0, ${JSON.stringify(path.join(RAIZ, "voz"))}); import comun; comun.guardar_wav(${JSON.stringify(grabacion)}, comun.murmullo(open(${JSON.stringify(path.join(RAIZ, "voz/texto-para-grabar.txt"))}).read().split("\\n")[-2], 44100, 1) * 0.6, 44100)`], { encoding: "utf8" });
+    const sinPermiso = spawnSync(pythonVoz, [path.join(RAIZ, "voz/preparar_voz.py"), grabacion], { encoding: "utf8", env: process.env });
+    const preparar = spawnSync(pythonVoz, [path.join(RAIZ, "voz/preparar_voz.py"), grabacion, "--es-mi-voz"], { encoding: "utf8", env: process.env });
+    ver("preparar_voz pide confirmar de quién es la voz y después la guarda", armar.status === 0 && sinPermiso.status === 2 && /--es-mi-voz/.test(sinPermiso.stdout) && preparar.status === 0 && existsSync(path.join(DIR_VOZ, "voces/mi-voz/referencia.wav")), armar.stderr + sinPermiso.stdout + preparar.stdout + preparar.stderr);
+    conVozSimulada();
+    const e = await voz.estadoVoz();
+    ver("El estado del comando dice el motor y que está la voz", e.ok && e.motor === "simulada" && e.tieneVoz, JSON.stringify(e));
+    const g = await voz.generarVoz({ frases: ["Tu café, en la taza justa.", "Tazas de 350 ml, pack x6.", "Pedilas hoy."], carpeta: path.join(TMP, "trabajos", "voz-prueba") });
+    const leido = g.archivos?.[1]?.leido || "";
+    ver("El comando deja un audio por frase y los números se leen con palabras", g.ok && g.archivos.length === 3 && g.archivos.every((a) => a.duracion > 0.3 && existsSync(a.ruta)) && /trescientos cincuenta mililitros/.test(leido) && /por seis/.test(leido), JSON.stringify(g));
+    process.env.VOZ_SIMULADA_FALLA = "sin memoria de prueba";
+    const falla = await voz.generarVoz({ frases: ["Hola.", "Hola.", "Hola."], carpeta: path.join(TMP, "trabajos", "voz-falla") });
+    delete process.env.VOZ_SIMULADA_FALLA;
+    ver("Si el comando falla, el motor recibe el motivo", !falla.ok && /falla simulada/.test(falla.motivo), JSON.stringify(falla));
+    process.env.VOZ_SIMULADA_DEMORA = "30";
+    CONFIG.voz.timeoutMin = 0.03;
+    const inicio = Date.now();
+    const lenta = await voz.generarVoz({ frases: ["Hola.", "Hola.", "Hola."], carpeta: path.join(TMP, "trabajos", "voz-lenta") });
+    delete process.env.VOZ_SIMULADA_DEMORA;
+    ver("Si tarda más que VOZ_TIMEOUT_MIN, la corta (sale ordenada, sin esperar los 30 s)", !lenta.ok && /tardó más/.test(lenta.motivo) && Date.now() - inicio < 15000, JSON.stringify(lenta));
+    CONFIG.voz.nombre = "otra";
+    const sinLaVoz = await voz.generarVoz({ frases: ["Hola.", "Hola.", "Hola."], carpeta: path.join(TMP, "trabajos", "voz-otra") });
+    sinVoz();
+    ver("Si no existe la voz, dice cómo cargarla", !sinLaVoz.ok && /voz-preparar/.test(sinLaVoz.motivo), JSON.stringify(sinLaVoz));
+    const chequeo = await correrNode("motor/chequeo.mjs", [], { env: { VOZ_COMANDO: COMANDO_VOZ, VOZ_TOPE_MEMORIA: "no", VOZ_MEMORIA_MIN_MB: "1" } });
+    ver("npm run chequeo revisa la voz", /✅ Voz en off: VoxCPM2 simulada en cpu, con la voz "mi-voz"/.test(chequeo.salida) && /✅ Frases de voz sin IA/.test(chequeo.salida), chequeo.salida);
+  });
+
+  await probar("voz: publicar con la marca de IA", async () => {
+    const conIa = await publicarReel({ ruta: ARCHIVO_VIDEO, caption: "Con voz", conIa: true });
+    const contenedor = estado.graph.filter((x) => x.ruta === "/ig1/media" && x.metodo === "POST").at(-1)?.form || {};
+    ver("Instagram: el contenedor lleva is_ai_generated", conIa.ok && contenedor.is_ai_generated === "true" && !conIa.sinMarcaIa);
+    estado.rechazarIa = true;
+    const rechazo = await publicarReel({ ruta: ARCHIVO_VIDEO, caption: "Con voz", conIa: true });
+    const antes = estado.buffer.length;
+    const redes = await mandarARedes({ producto: "Taza", fecha: hoy, caption: "Texto #a", gancho: "Tu café", urlInstagram: `${BASE}/video.mp4`, ruta: ARCHIVO_VIDEO, conIa: true });
+    estado.rechazarIa = false;
+    const creados = estado.buffer.slice(antes).filter((x) => /createPost/.test(x.query)).map((x) => x.variables.input);
+    ver("Si una red no acepta la marca, publica igual sin ella y lo anota", rechazo.ok && rechazo.sinMarcaIa && redes.ok && redes.redes.every((x) => x.ok && x.sinMarcaIa), JSON.stringify({ rechazo, redes }));
+    ver("Buffer: primero manda la marca a TikTok y a YouTube", creados.some((x) => x.metadata?.tiktok?.isAiGenerated) && creados.some((x) => x.metadata?.youtube?.isAiGenerated));
+  });
+}
+
+// ---------- 13. Render con HyperFrames (opcional) ----------
 if (conRender) {
   for (const estilo of ["cajas", "clasico"]) {
     await probar(`render ${estilo}`, async () => {
@@ -642,6 +815,34 @@ if (conRender) {
       if (fila.archivo) console.log(`   video: ${ruta}`);
     });
   }
+}
+
+if (conRender && pythonVoz) {
+  await probar("render con voz", async () => {
+    await escribirNegocio({ estilo: "cajas" });
+    refrescarNegocio();
+    conVozSimulada();
+    const fila = await generar({ fecha: sumarDias(hoy, 22), linea: "tazas", producto: "Taza de cerámica 350 ml x6 unid", link: `${BASE}/producto/woo`, mostrar_precio: false, prueba: true });
+    sinVoz();
+    const ruta = path.join(RUTAS.salida, fila.archivo || "x");
+    const datos = existsSync(ruta)
+      ? spawnSync("ffprobe", ["-v", "error", "-show_entries", "format=duration:format_tags=comment:stream=codec_type", "-of", "json", ruta], { encoding: "utf8" })
+      : { stdout: "{}" };
+    const info = JSON.parse(datos.stdout || "{}");
+    const volumen = existsSync(ruta) ? spawnSync("ffmpeg", ["-hide_banner", "-nostats", "-i", ruta, "-af", "ebur128", "-f", "null", "-"], { encoding: "utf8" }).stderr : "";
+    const lufs = Number((volumen.match(/I:\s+(-?[\d.]+) LUFS/g) || []).at(-1)?.match(/-?[\d.]+/)?.[0]);
+    const caption = existsSync(ruta) ? await fs.readFile(ruta.replace(/\.mp4$/, ".txt"), "utf8") : "";
+    // El servidor falso guarda el formulario como latin1 (tiene el video adentro): el texto se vuelve a leer como UTF-8.
+    const mensaje = Buffer.from(estado.telegram.filter((x) => x.metodo === "sendVideo").at(-1)?.datos?.multipart || "", "latin1").toString("utf8");
+    ver(
+      "Render con voz: el video lleva la voz, el aviso de IA en el archivo y el posteo, y Telegram muestra lo que dice",
+      fila.estado === "esperando_ok" && (info.streams || []).some((x) => x.codec_type === "audio") && /Voz generada con IA/.test(info.format?.tags?.comment || "") &&
+        caption.includes("🎙️ Voz generada con IA.") && mensaje.includes("🎙️ Voz:") && /voz/i.test(fila.nota || ""),
+      JSON.stringify({ nota: fila.nota, tags: info.format?.tags, telegram: mensaje.includes("🎙️ Voz:") }),
+    );
+    ver(`Render con voz: volumen parejo en -16 LUFS (${lufs})`, Math.abs(lufs + 16) <= 1.5);
+    if (fila.archivo) console.log(`   video: ${ruta}`);
+  });
 }
 
 // ---------- Fin ----------

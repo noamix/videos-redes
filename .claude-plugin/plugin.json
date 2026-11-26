@@ -1,8 +1,8 @@
 {
   "name": "videos-redes",
   "displayName": "Videos diarios para redes",
-  "version": "0.2.0",
-  "description": "Arma y mantiene un sistema gratis que hace un video corto de producto por día con las fotos de tu web, te lo manda a Telegram para que lo apruebes y lo publica solo en Instagram, TikTok y YouTube Shorts a la hora que elijas. Trae el motor ya programado y probado (HyperFrames, Gemini gratis, n8n, Meta y Buffer). Las pruebas son siempre sin publicar y las claves no pasan por el chat.",
+  "version": "0.3.0",
+  "description": "Arma y mantiene un sistema gratis que hace un video corto de producto por día con las fotos de tu web, te lo manda a Telegram para que lo apruebes y lo publica solo en Instagram, TikTok y YouTube Shorts a la hora que elijas. Trae el motor ya programado y probado (HyperFrames, Gemini gratis, n8n, Meta y Buffer) y, opcional, voz en off con tu propia voz armada en tu compu (VoxCPM2), con un evaluador que dice antes si tu compu la banca. Las pruebas son siempre sin publicar y las claves no pasan por el chat.",
   "author": {
     "name": "Leo"
   },
@@ -19,6 +19,8 @@
     "automatizacion",
     "hyperframes",
     "buffer",
-    "telegram"
+    "telegram",
+    "voz-en-off",
+    "voxcpm"
   ]
 }

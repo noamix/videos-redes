@@ -2,6 +2,7 @@
 // con él un borrador en cada red conectada (Buffer baja el video y lo revisa) y los borra enseguida.
 //   npm run redes-probar                 → usa el último video de Instagram
 //   npm run redes-probar -- <url.mp4>    → usa ese link público
+//   npm run redes-probar -- --ia         → además prueba la marca de IA (videos con voz)
 import { instagramConfigurado, ultimoVideo } from "./instagram.mjs";
 import { bufferConfigurado, canalesBuffer, probarEnvio } from "./buffer.mjs";
 import { CONFIG } from "./config.mjs";
@@ -33,7 +34,9 @@ for (const [red, nombre] of [["tiktok", "TikTok"], ["youtube", "YouTube"]]) {
 
 for (const a of canales.avisos || []) console.log(`⚠️ ${a}`);
 
-let url = process.argv[2] || "";
+const args = process.argv.slice(2);
+const conIa = args.includes("--ia");
+let url = args.find((a) => !a.startsWith("--")) || "";
 if (!url) {
   if (!instagramConfigurado()) salir("❌ Instagram no está configurado y no pasaste un link de video");
   try {
@@ -48,14 +51,14 @@ if (!url) {
     salir(`❌ No pude leer los videos de Instagram: ${e.message}`);
   }
 }
-const resultados = await probarEnvio({ url });
+const resultados = await probarEnvio({ url, conIa });
 let fallas = 0;
 for (const r of resultados) {
   if (!r.ok) {
     fallas++;
     console.log(`❌ ${r.nombre}: ${r.motivo}`);
   } else if (r.borrado) {
-    console.log(`✅ ${r.nombre}: Buffer bajó el video y armó el borrador. Ya lo borré: no se publicó nada.`);
+    console.log(`✅ ${r.nombre}: Buffer bajó el video y armó el borrador${conIa ? " con la marca de IA" : ""}. Ya lo borré: no se publicó nada.`);
   } else {
     console.log(`⚠️ ${r.nombre}: Buffer armó el borrador, pero no lo pude borrar (id ${r.id}). Borralo a mano en Buffer → Drafts. No se publicó nada.`);
   }
